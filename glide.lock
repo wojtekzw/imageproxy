@@ -1,0 +1,44 @@
+hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+updated: 2016-09-05T13:49:25.942715982+02:00
+imports:
+- name: github.com/bradfitz/gomemcache
+  version: fb1f79c6b65acda83063cbc69f6bba1522558bfc
+- name: github.com/disintegration/imaging
+  version: d8bbae1de109b518dabc98c6c1633eb358c148a4
+- name: github.com/garyburd/redigo
+  version: ffa8d46ada782d81cfda81a0fbd9f45ceae448e8
+- name: github.com/golang/glog
+  version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
+- name: github.com/golang/protobuf
+  version: 1f49d83d9aa00e6ce4fc8258c71cc7786aec968a
+- name: github.com/golang/snappy
+  version: d9eb7a3d35ec988b8585d4a0068e462c27d28380
+- name: github.com/google/btree
+  version: 7d79101e329e5a3adf994758c578dab82b90c017
+- name: github.com/gregjones/httpcache
+  version: 413781778738c08fdbb98e1dd65f5abffe8832d0
+  subpackages:
+  - diskcache
+- name: github.com/kr/http
+  version: 94dbd77d6ef8e8b600a258f80b5a24dc1846755e
+- name: github.com/nfnt/resize
+  version: 891127d8d1b52734debe1b3c3d7e747502b6c366
+- name: github.com/onsi/ginkgo
+  version: 7b6efc7d7b052568b49ac02d3141c9d7a5a494a4
+- name: github.com/onsi/gomega
+  version: b48c9a8b2644326d0a44eaaacc8d83e35174a05d
+- name: github.com/peterbourgon/diskv
+  version: 5dfcb07a075adbaaa4094cddfd160b1e1c77a043
+- name: github.com/sqs/s3
+  version: 94dbd77d6ef8e8b600a258f80b5a24dc1846755e
+- name: github.com/syndtr/goleveldb
+  version: 6ae1797c0b42b9323fc27ff7dcf568df88f2f33d
+- name: golang.org/x/image
+  version: 714f2e47f73aac52208d4f4260e4ba79358a9c28
+- name: gopkg.in/yaml.v2
+  version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
+- name: sourcegraph.com/sourcegraph/s3cache
+  version: 4150cc6b046500fb69804e34aa4a1ca8be361bcb
+- name: willnorris.com/go/gifresize
+  version: 6a222229fa0697e6da06ec80f8ffd0ada346669d
+devImports: []

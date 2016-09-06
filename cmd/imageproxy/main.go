@@ -27,8 +27,8 @@ import (
 	"github.com/gregjones/httpcache"
 	"github.com/gregjones/httpcache/diskcache"
 	"github.com/peterbourgon/diskv"
+	"github.com/wojtekzw/imageproxy"
 	"sourcegraph.com/sourcegraph/s3cache"
-	"willnorris.com/go/imageproxy"
 )
 
 // goxc values
@@ -100,6 +100,7 @@ func main() {
 
 	fmt.Printf("imageproxy (version %v) listening on %s\n", VERSION, server.Addr)
 	log.Fatal(server.ListenAndServe())
+
 }
 
 // parseCache parses the cache-related flags and returns the specified Cache implementation.

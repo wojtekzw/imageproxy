@@ -34,6 +34,12 @@ import (
 	"github.com/gregjones/httpcache"
 )
 
+const (
+	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error
+	// It is safety feature to protect memory
+	MaxRespBodySize = 1024 * 1024 * 20
+)
+
 // Proxy serves image requests.
 type Proxy struct {
 	Client *http.Client // client used to fetch remote URLs
@@ -274,7 +280,10 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 
+	resp.Body = NewLimitedReadCloser(resp.Body, MaxRespBodySize)
+
 	defer resp.Body.Close()
+
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

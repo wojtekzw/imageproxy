@@ -16,12 +16,13 @@ package imageproxy
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/disintegration/imaging"
+	"github.com/golang/glog"
 	"image"
 	_ "image/gif" // register gif format
 	"image/jpeg"
 	"image/png"
-
-	"github.com/disintegration/imaging"
 	"willnorris.com/go/gifresize"
 )
 
@@ -30,6 +31,9 @@ const defaultQuality = 95
 
 // resample filter used when resizing images
 var resampleFilter = imaging.Lanczos
+
+// MaxScaleUp - ff ScaleUp is allowed - maximum increase in pixel count of the image (resize from 100x100 to 200x200 is 4 times increase not 2)
+var MaxScaleUp = 2.0
 
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
@@ -103,9 +107,30 @@ func resizeParams(m image.Image, opt Options) (w, h int, resize bool) {
 	// never resize larger than the original image unless specifically allowed
 	if !opt.ScaleUp {
 		if w > imgW {
+			glog.Infof("resizeParams: requested size: (width: %d). ScaleUp not allowed. Returning original size: (width: %d)", w, imgW)
 			w = imgW
 		}
 		if h > imgH {
+			glog.Infof("resizeParams: requested size: (height: %d). ScaleUp not allowed. Returning original size: (height: %d)", h, imgH)
+			h = imgH
+		}
+	}
+
+	nW, nH, err := newSize(w, h, imgW, imgH)
+	if err != nil {
+		return 0, 0, false
+	}
+
+	glog.Infof("resizeParams: requested size: (%dx%d), calculated:(%dx%d), original: (%dx%d)", w, h, nW, nH, imgW, imgH)
+
+	// check ScaleUp limits (to protect memory) - max resize is set to 2 more pixels
+	if opt.ScaleUp {
+		orgSize := float64(imgW * imgH)
+		newSize := float64(nW * nH)
+		if newSize/orgSize > MaxScaleUp {
+			glog.Infof("resizeParams: requested size: (%dx%d). ScaleUp too large: %.1f (allowed: %.1f). Returning original size: (%dx%d)", w, h, newSize/orgSize, MaxScaleUp, imgW, imgH)
+			// return original size
+			w = imgW
 			h = imgH
 		}
 	}
@@ -153,4 +178,31 @@ func transformImage(m image.Image, opt Options) image.Image {
 	}
 
 	return m
+}
+
+func newSize(newW, newH, orgW, orgH int) (int, int, error) {
+
+	if (newW > 0) && (newH > 0) {
+		return newW, newH, nil
+	}
+
+	if (orgW == 0) || (orgH == 0) {
+		return orgW, orgH, nil
+	}
+
+	if (newW == 0) && (newH == 0) {
+		return 0, 0, fmt.Errorf("Width or Height (or both) must be greater than 0")
+	}
+
+	aspectRatio := float64(orgW) / float64(orgH)
+
+	if newW == 0 {
+		return int(aspectRatio * float64(newH)), newH, nil
+	}
+
+	if newH == 0 {
+		return newW, int((1.0 / aspectRatio) * float64(newW)), nil
+	}
+
+	return newW, newH, nil
 }

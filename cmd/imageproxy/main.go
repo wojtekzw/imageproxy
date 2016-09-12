@@ -50,6 +50,7 @@ var cacheSize = flag.Uint64("cacheSize", 0, "Deprecated: this flag does nothing"
 var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max size of original proxied request")
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
+var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleUp to maxScaleUp times (eg. 4.0 means 100x100 can be resized do 200x200 or 300x133 etc.)")
 var version = flag.Bool("version", false, "print version information")
 
 func main() {
@@ -67,6 +68,14 @@ func main() {
 
 	if *responseSize == 0 {
 		*responseSize = imageproxy.MaxRespBodySize
+		log.Printf("Set responseSize to %d", *responseSize)
+	}
+
+	if *maxScaleUp <= 0 {
+		// do nothing - leave default imageproxy.MaxScaleUp. Inform user
+		log.Printf("Set maxScaleUp to %.1f", imageproxy.MaxScaleUp)
+	} else {
+		imageproxy.MaxScaleUp = *maxScaleUp
 	}
 
 	p := imageproxy.NewProxy(nil, c, *responseSize)

@@ -66,6 +66,8 @@ func TestResizeParams(t *testing.T) {
 		{Options{Width: 64}, 0, 0, false},
 		{Options{Height: 128}, 0, 0, false},
 	}
+
+	MaxScaleUp = 2.5 // for ScaleUp test (defualt 2.0 is not enough)
 	for _, tt := range tests {
 		w, h, resize := resizeParams(src, tt.opt)
 		if w != tt.w || h != tt.h || resize != tt.resize {
@@ -164,7 +166,7 @@ func TestTransformImage(t *testing.T) {
 			Options{Width: 100, Height: 100},
 			ref,
 		},
-		{ // can resize larger than original image
+		{ // can resize larger than original image - MaxScaleUp = 4
 			ref,
 			Options{Width: 4, Height: 4, ScaleUp: true},
 			newImage(4, 4, red, red, green, green, red, red, green, green, blue, blue, yellow, yellow, blue, blue, yellow, yellow),
@@ -209,7 +211,7 @@ func TestTransformImage(t *testing.T) {
 			Options{Width: 2, Height: 2, Fit: true},
 			newImage(2, 1, red, blue),
 		},
-		{ // scale image explicitly
+		{ // scale image explicitly (set )
 			newImage(4, 2, red, red, blue, blue, red, red, blue, blue),
 			Options{Width: 2, Height: 1},
 			newImage(2, 1, red, blue),
@@ -223,9 +225,27 @@ func TestTransformImage(t *testing.T) {
 		},
 	}
 
+	MaxScaleUp = 4.0
 	for _, tt := range tests {
 		if got := transformImage(tt.src, tt.opt); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("trasformImage(%v, %v) returned image %#v, want %#v", tt.src, tt.opt, got, tt.want)
 		}
 	}
+
+	MaxScaleUp = 2.0 //will not scaleUp
+	tests = []struct {
+		src  image.Image // source image to transform
+		opt  Options     // options to apply during transform
+		want image.Image // expected transformed image
+	}{
+		// no transformation - no ScaleUp beacause limit is too low (should be 4)
+		{ref, Options{Width: 4, Height: 4, ScaleUp: true}, ref},
+	}
+
+	for _, tt := range tests {
+		if got := transformImage(tt.src, tt.opt); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("trasformImage(%v, %v) returned image %#v, want %#v", tt.src, tt.opt, got, tt.want)
+		}
+	}
+
 }

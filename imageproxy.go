@@ -115,7 +115,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// assign static settings from proxy to req.Options
 	req.Options.ScaleUp = p.ScaleUp
 
-	if err := p.allowed(req); err != nil {
+	if err = p.allowed(req); err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return

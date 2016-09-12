@@ -74,7 +74,7 @@ func TestAllowed(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		p := NewProxy(nil, nil)
+		p := NewProxy(nil, nil, MaxRespBodySize)
 		p.Whitelist = tt.whitelist
 		p.SignatureKey = tt.key
 		p.Referrers = tt.referrers
@@ -306,7 +306,10 @@ func TestTransformingTransport(t *testing.T) {
 	tr := &TransformingTransport{
 		Transport:     testTransport{},
 		CachingClient: client,
+		ResponseSize:  MaxRespBodySize,
 	}
+	// TODO: test ResponseSize works as designed
+
 	client.Transport = tr
 
 	tests := []struct {

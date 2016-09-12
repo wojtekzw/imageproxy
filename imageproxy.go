@@ -69,7 +69,7 @@ type Proxy struct {
 // NewProxy constructs a new proxy.  The provided http RoundTripper will be
 // used to fetch remote URLs.  If nil is provided, http.DefaultTransport will
 // be used.
-func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
+func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) *Proxy {
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -83,7 +83,7 @@ func NewProxy(transport http.RoundTripper, cache Cache) *Proxy {
 
 	client := new(http.Client)
 	client.Transport = &httpcache.Transport{
-		Transport:           &TransformingTransport{transport, client},
+		Transport:           &TransformingTransport{transport, client, maxResponseSize},
 		Cache:               cache,
 		MarkCachedResponses: true,
 	}
@@ -263,6 +263,9 @@ type TransformingTransport struct {
 	// used rather than Transport directly in order to ensure that
 	// responses are properly cached.
 	CachingClient *http.Client
+
+	// ResponseSize - maximum size of remote image to be be fetched by Client. If image is larger Get(url) will return error
+	ResponseSize uint64
 }
 
 // RoundTrip implements the http.RoundTripper interface.
@@ -280,7 +283,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 
-	resp.Body = NewLimitedReadCloser(resp.Body, MaxRespBodySize)
+	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.ResponseSize))
 
 	defer resp.Body.Close()
 

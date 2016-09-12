@@ -44,9 +44,10 @@ var addr = flag.String("addr", "localhost:8080", "TCP address to listen on")
 var whitelist = flag.String("whitelist", "", "comma separated list of allowed remote hosts")
 var referrers = flag.String("referrers", "", "comma separated list of allowed referring hosts")
 var baseURL = flag.String("baseURL", "", "default base URL for relative remote URLs")
-var cache = flag.String("cache", "", "location to cache images (see https://github.com/willnorris/imageproxy#cache)")
+var cache = flag.String("cache", "", "location to cache images (see https://github.com/wojtekzw/imageproxy#cache)")
 var cacheDir = flag.String("cacheDir", "", "(Deprecated; use 'cache' instead) directory to use for file cache")
 var cacheSize = flag.Uint64("cacheSize", 0, "Deprecated: this flag does nothing")
+var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max size of original proxied request")
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
 var version = flag.Bool("version", false, "print version information")
@@ -64,7 +65,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p := imageproxy.NewProxy(nil, c)
+	if *responseSize == 0 {
+		*responseSize = imageproxy.MaxRespBodySize
+	}
+
+	p := imageproxy.NewProxy(nil, c, *responseSize)
 	if *whitelist != "" {
 		p.Whitelist = strings.Split(*whitelist, ",")
 	}

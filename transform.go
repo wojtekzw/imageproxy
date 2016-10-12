@@ -35,10 +35,20 @@ var resampleFilter = imaging.Lanczos
 // MaxScaleUp - ff ScaleUp is allowed - maximum increase in pixel count of the image (resize from 100x100 to 200x200 is 4 times increase not 2)
 var MaxScaleUp = 2.0
 
+type imageSizes struct {
+	initial            int
+	initialDecoded     int
+	transformedDecoded int
+	transformed        int
+}
+
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
 func Transform(img []byte, opt Options) ([]byte, error) {
+
+	imgSize := imageSizes{initial: len(img)}
+
 	if !opt.transform() {
 		// bail if no transformation was requested
 		return img, nil
@@ -79,6 +89,10 @@ func Transform(img []byte, opt Options) ([]byte, error) {
 			return nil, err
 		}
 	}
+
+	imgSize.transformed = len(buf.Bytes())
+
+	glog.Infof("transform: initial size: %d, transformed: %d, sum: %d", imgSize.initial, imgSize.transformed, imgSize.initial+imgSize.transformed)
 
 	return buf.Bytes(), nil
 }

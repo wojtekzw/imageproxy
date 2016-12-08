@@ -1,0 +1,46 @@
+---
+
+
+
+- name: Clean imageproxy cache - serialy
+  hosts: ls
+  #  deploy serialy 1 by 1
+  serial: 1
+  gather_facts: yes
+
+
+  vars:
+    base_dir: "/home/wzwiefka"
+#    local_dir: "/Users/wzwiefka"
+    cache_dir: "/tmp/imageproxy/cache"
+
+
+  tasks:
+  - name: Stop imageproxy
+    supervisorctl:
+      name: imageproxy
+      state: stopped
+      config: "{{ base_dir }}/supervisord.conf"
+    tags:
+      - clean_cache
+      - restart
+      - stop
+
+  - name: Clean imageproxy cache
+    file:
+      path: "{{ cache_dir }}"
+      state: absent
+    tags:
+      - clean_cache
+
+
+  - name: Start imageproxy
+    supervisorctl:
+      name: imageproxy
+      state: started
+      config: "{{ base_dir }}/supervisord.conf"
+    tags:
+      - clean_cache
+      - restart
+      - start
+

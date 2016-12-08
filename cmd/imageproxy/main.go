@@ -33,11 +33,14 @@ import (
 
 // goxc values
 var (
-	// VERSION is the version string for imageproxy.
-	VERSION = "HEAD"
+	// Version is the version string for imageproxy.
+	Version = "HEAD"
 
-	// BUILD_DATE is the timestamp of when imageproxy was built.
-	BUILD_DATE string
+	// BuildDate is the timestamp of when imageproxy was built.
+	BuildDate string
+
+	// GitHash - gist hash of current commit
+	GitHash string
 )
 
 var addr = flag.String("addr", "localhost:8080", "TCP address to listen on")
@@ -57,7 +60,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("%v\nBuild: %v\n", VERSION, BUILD_DATE)
+		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate,GitHash)
 		return
 	}
 
@@ -112,7 +115,7 @@ func main() {
 		Handler: p,
 	}
 
-	fmt.Printf("imageproxy (version %v) listening on %s\n", VERSION, server.Addr)
+	fmt.Printf("imageproxy (version %v) listening on %s\n", Version, server.Addr)
 	log.Fatal(server.ListenAndServe())
 
 }

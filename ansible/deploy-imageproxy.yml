@@ -3,13 +3,13 @@
 
 - name: Build and test Linux & MacOS binary
   hosts: ls
+  gather_facts: no
   vars:
     base_dir: "/home/wzwiefka"
     local_dir: "/Users/wzwiefka"
     imageproxy_dir: "{{ local_dir }}/Documents/goext/src/github.com/wojtekzw/imageproxy"
     imageproxy_cmd_dir: "{{ imageproxy_dir}}//cmd/imageproxy"
-#    golang_ldflags: "-X main.BuildDate=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.LogserverVersion=0.9.7"
-    golang_ldflags: ""
+    golang_ldflags: "-X main.BuildDate=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.Version=0.5"
 
   tasks:
   - name: Test imageproxy binary
@@ -40,7 +40,7 @@
   hosts: ls
   #  deploy serialy 1 by 1
   serial: 1
-  gather_facts: no
+#  gather_facts: no
 
 
   vars:

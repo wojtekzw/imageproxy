@@ -24,9 +24,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gregjones/httpcache"
-	"github.com/gregjones/httpcache/diskcache"
-	"github.com/peterbourgon/diskv"
+	"github.com/wojtekzw/httpcache"
+	"github.com/wojtekzw/httpcache/diskcache"
+	"github.com/wojtekzw/diskv"
 	"github.com/wojtekzw/imageproxy"
 	"sourcegraph.com/sourcegraph/s3cache"
 )

@@ -1,3 +1,5 @@
 build
 .goxc.local.json
 *.test
+.idea
+cmd/imageproxy/builds

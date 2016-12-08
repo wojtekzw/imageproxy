@@ -97,7 +97,7 @@ func TestTransform(t *testing.T) {
 		tt.encode(buf, src)
 		in := buf.Bytes()
 
-		out, err := Transform(in, emptyOptions)
+		out, err := Transform(in, emptyOptions,"testName")
 		if err != nil {
 			t.Errorf("Transform with encoder %s returned unexpected error: %v", tt.name, err)
 		}
@@ -105,7 +105,7 @@ func TestTransform(t *testing.T) {
 			t.Errorf("Transform with with encoder %s with empty options returned modified result", tt.name)
 		}
 
-		out, err = Transform(in, Options{Width: -1, Height: -1})
+		out, err = Transform(in, Options{Width: -1, Height: -1},"testName")
 		if err != nil {
 			t.Errorf("Transform with encoder %s returned unexpected error: %v", tt.name, err)
 		}
@@ -117,7 +117,7 @@ func TestTransform(t *testing.T) {
 		}
 	}
 
-	if _, err := Transform([]byte{}, Options{Width: 1}); err == nil {
+	if _, err := Transform([]byte{}, Options{Width: 1}, "testName"); err == nil {
 		t.Errorf("Transform with invalid image input did not return expected err")
 	}
 }

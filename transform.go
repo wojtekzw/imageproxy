@@ -45,7 +45,7 @@ type imageSizes struct {
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func Transform(img []byte, opt Options) ([]byte, error) {
+func Transform(img []byte, opt Options, url string) ([]byte, error) {
 
 	imgSize := imageSizes{initial: len(img)}
 
@@ -92,7 +92,7 @@ func Transform(img []byte, opt Options) ([]byte, error) {
 
 	imgSize.transformed = len(buf.Bytes())
 
-	glog.Infof("transform: initial size: %d, transformed: %d, sum: %d", imgSize.initial, imgSize.transformed, imgSize.initial+imgSize.transformed)
+	glog.Infof("transform: name: %s, initial size: %d, transformed: %d, sum: %d", url, imgSize.initial, imgSize.transformed, imgSize.initial+imgSize.transformed)
 
 	return buf.Bytes(), nil
 }
@@ -137,7 +137,7 @@ func resizeParams(m image.Image, opt Options) (w, h int, resize bool) {
 
 	glog.Infof("resizeParams: requested size: (%dx%d), calculated:(%dx%d), original: (%dx%d)", w, h, nW, nH, imgW, imgH)
 
-	// check ScaleUp limits (to protect memory) - max resize is set to 2 more pixels
+	// check ScaleUp limits (to protect memory) - max resize is set to 2 times more pixels
 	if opt.ScaleUp {
 		orgSize := float64(imgW * imgH)
 		newSize := float64(nW * nH)

@@ -28,16 +28,6 @@
 			"revisionTime": "2015-05-05T14:27:37-07:00"
 		},
 		{
-			"path": "github.com/petar/GoLLRB/llrb",
-			"revision": "53be0d36a84c2a886ca057d34b6aa4468df9ccb4",
-			"revisionTime": "2013-04-27T17:51:48-04:00"
-		},
-		{
-			"path": "github.com/peterbourgon/diskv",
-			"revision": "72aa5da9f7d1125b480b83c6dc5ad09a1f04508c",
-			"revisionTime": "2014-12-31T15:08:51+01:00"
-		},
-		{
 			"path": "github.com/sqs/s3",
 			"revision": "ee47412d98d9637046a7096f24809bc45f6bcbd5",
 			"revisionTime": "2015-02-03T03:00:30-08:00"
@@ -74,5 +64,5 @@
 			"revisionTime": "2016-04-28T23:14:23Z"
 		}
 	],
-	"rootPath": "willnorris.com/go/imageproxy"
+	"rootPath": "github.com/wojtekzw/imageproxy"
 }

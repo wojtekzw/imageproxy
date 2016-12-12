@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/gregjones/httpcache"
+	"github.com/wojtekzw/httpcache"
 )
 
 const (

@@ -6,7 +6,7 @@
   hosts: ls
   #  deploy serialy 1 by 1
   serial: 1
-  gather_facts: yes
+  gather_facts: no
 
 
   vars:

@@ -32,6 +32,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/wojtekzw/httpcache"
+	"strconv"
 )
 
 const (
@@ -293,8 +294,15 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 
-	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.ResponseSize))
 
+	contentLength, _ := uint64(strconv.Atoi(resp.Header.Get("Content-Length")))
+	// no data reading - check first Content-Length
+	if contentLength > t.ResponseSize {
+		return nil, fmt.Errorf("size too large: max size: %d, content-length: %d",t.ResponseSize, contentLength)
+	}
+
+	//read data with limiter if there is no Content-Length header or it is fake
+	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.ResponseSize))
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)

@@ -49,13 +49,17 @@ func Transform(img []byte, opt Options, url string) ([]byte, error) {
 
 	imgSize := imageSizes{initial: len(img)}
 
+
 	if !opt.transform() {
 		// bail if no transformation was requested
 		return img, nil
 	}
 
+	glog.Infof("pre-transform: name: %s, initial size: %d", url, imgSize.initial)
+
 	// decode image
 	m, format, err := image.Decode(bytes.NewReader(img))
+	glog.Infof("transform:decode name: %s, format %v, err: %v", url, format,err)
 	if err != nil {
 		return nil, err
 	}

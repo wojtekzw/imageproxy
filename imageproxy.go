@@ -37,8 +37,10 @@ import (
 const (
 	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error
 	// It is safety feature to protect memory
-	MaxRespBodySize = 1024 * 1024 * 20
+	MaxRespBodySize = 10 * 1024 * 1024
 )
+
+var concurrencyGuard = make(chan struct{}, 20)
 
 // Proxy serves image requests.
 type Proxy struct {
@@ -103,6 +105,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 		return
 	}
+
+
+	concurrencyGuard <- struct{}{}
+	defer func() { <-concurrencyGuard }()
+	glog.Infof("concurrency: %d",len(concurrencyGuard))
+
+
+	glog.Infof("pre-request: %v", r.URL.String())
 
 	req, err := NewRequest(r, p.DefaultBaseURL)
 	if err != nil {

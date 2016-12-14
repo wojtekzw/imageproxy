@@ -295,9 +295,9 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 
-	contentLength, _ := uint64(strconv.Atoi(resp.Header.Get("Content-Length")))
+	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
-	if contentLength > t.ResponseSize {
+	if uint64(contentLength) > t.ResponseSize {
 		return nil, fmt.Errorf("size too large: max size: %d, content-length: %d",t.ResponseSize, contentLength)
 	}
 

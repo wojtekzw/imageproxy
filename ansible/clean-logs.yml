@@ -1,0 +1,53 @@
+---
+
+
+
+- name: Clean imageproxy logs - serialy
+  hosts: ls
+  #  deploy serialy 1 by 1
+  serial: 1
+  gather_facts: no
+
+
+  vars:
+    base_dir: "/home/wzwiefka"
+#    local_dir: "/Users/wzwiefka"
+    logs_dir: "/tmp/imageproxy/logs"
+
+
+  tasks:
+  - name: Stop imageproxy
+    supervisorctl:
+      name: imageproxy
+      state: stopped
+      config: "{{ base_dir }}/supervisord.conf"
+    tags:
+      - clean_logs
+      - restart
+      - stop
+
+  - name: Clean imageproxy logs
+    file:
+      path: "{{ logs_dir }}"
+      state: absent
+    tags:
+      - clean_logs
+
+  - name: Create imageproxy logs dir
+    file:
+      path: "{{ logs_dir }}"
+      state: directory
+    tags:
+      - clean_logs
+
+
+  - name: Start imageproxy
+    supervisorctl:
+      name: imageproxy
+      state: started
+      config: "{{ base_dir }}/supervisord.conf"
+    tags:
+      - clean_logs
+      - restart
+      - start
+

@@ -41,7 +41,7 @@ const (
 	MaxRespBodySize = 10 * 1024 * 1024
 )
 
-var concurrencyGuard = make(chan struct{}, 20)
+var concurrencyGuard = make(chan struct{}, 15)
 
 // Proxy serves image requests.
 type Proxy struct {

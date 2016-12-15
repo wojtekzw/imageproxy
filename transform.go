@@ -24,6 +24,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"willnorris.com/go/gifresize"
+	"github.com/wojtekzw/statsd"
 )
 
 // default compression quality of resized jpegs
@@ -52,13 +53,27 @@ func Transform(img []byte, opt Options, url string) ([]byte, error) {
 
 	if !opt.transform() {
 		// bail if no transformation was requested
+		Statsd.Increment("transform.noop")
 		return img, nil
 	}
+
+	Statsd.Increment("transform.request")
+
+	var timerTransform statsd.Timinger
+	timerTransform = Statsd.NewTiming()
+	defer timerTransform.Send("transform.time.total")
+
 
 	glog.Infof("pre-transform: name: %s, initial size: %d", url, imgSize.initial)
 
 	// decode image
+	var timerDecode statsd.Timinger
+	timerDecode = Statsd.NewTiming()
+
 	m, format, err := image.Decode(bytes.NewReader(img))
+
+	timerDecode.Send("transform.time.decode")
+
 	glog.Infof("transform:decode name: %s, format %v, err: %v", url, format,err)
 	if err != nil {
 		return nil, err
@@ -164,6 +179,11 @@ func resizeParams(m image.Image, opt Options) (w, h int, resize bool) {
 // transformImage modifies the image m based on the transformations specified
 // in opt.
 func transformImage(m image.Image, opt Options) image.Image {
+
+	var timerTransform statsd.Timinger
+	timerTransform = Statsd.NewTiming()
+	defer timerTransform.Send("transform.time.transform_image")
+
 	// resize if needed
 	if w, h, resize := resizeParams(m, opt); resize {
 		if opt.Fit {

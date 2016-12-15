@@ -29,10 +29,11 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
 	"github.com/golang/glog"
 	"github.com/wojtekzw/httpcache"
 	"strconv"
+	"github.com/wojtekzw/statsd"
+
 )
 
 const (
@@ -41,7 +42,10 @@ const (
 	MaxRespBodySize = 10 * 1024 * 1024
 )
 
-var concurrencyGuard = make(chan struct{}, 15)
+var (
+	concurrencyGuard = make(chan struct{}, 15)
+	Statsd statsd.Statser = &statsd.NoopClient{}
+)
 
 // Proxy serves image requests.
 type Proxy struct {
@@ -98,19 +102,34 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 
 // ServeHTTP handles image requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	Statsd.Increment("request.count.total")
 	if r.URL.Path == "/favicon.ico" {
+		Statsd.Increment("request.count.favicon")
 		return // ignore favicon requests
 	}
 
 	if r.URL.Path == "/health-check" {
+		Statsd.Increment("request.count.health_check")
 		fmt.Fprint(w, "OK")
 		return
 	}
 
 
+	var timer statsd.Timinger
+
+	timer = Statsd.NewTiming()
+	defer timer.Send("request.time")
+
 	concurrencyGuard <- struct{}{}
 	defer func() { <-concurrencyGuard }()
-	glog.Infof("concurrency: %d",len(concurrencyGuard))
+
+	lenCG := len(concurrencyGuard)
+	Statsd.Gauge("concurrency",lenCG)
+	statsdProcessMemStats(Statsd)
+
+
+	glog.Infof("concurrency: %d",lenCG)
 
 
 	glog.Infof("pre-request: %v", r.URL.String())
@@ -120,6 +139,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		msg := fmt.Sprintf("invalid request URL: %v", err)
 		glog.Error(msg)
 		http.Error(w, msg, http.StatusBadRequest)
+		Statsd.Increment("request.error.invalid_request_url")
 		return
 	}
 
@@ -129,6 +149,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err = p.allowed(req); err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
+		Statsd.Increment("request.error.not_allowed")
 		return
 	}
 
@@ -137,12 +158,18 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		msg := fmt.Sprintf("error fetching remote image: %v", err)
 		glog.Error(msg)
 		http.Error(w, msg, http.StatusInternalServerError)
+		Statsd.Increment("request.error.fetch")
 		return
 	}
 	defer resp.Body.Close()
 
 	cached := resp.Header.Get(httpcache.XFromCache)
 	glog.Infof("request: %v (served from cache: %v)", *req, cached == "1")
+	if cached == "1" {
+		Statsd.Increment("request.cached")
+	} else {
+		Statsd.Increment("request.not_cached")
+	}
 
 	copyHeader(w, resp, "Cache-Control")
 	copyHeader(w, resp, "Last-Modified")
@@ -159,6 +186,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	copyHeader(w, resp, "Content-Type")
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
+	Statsd.Increment("request.code."+ strconv.Itoa(resp.StatusCode))
 }
 
 func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
@@ -287,6 +315,11 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return t.Transport.RoundTrip(req)
 	}
 
+
+	var timer statsd.Timinger
+
+	timer = Statsd.NewTiming()
+
 	u := *req.URL
 	u.Fragment = ""
 	resp, err := t.CachingClient.Get(u.String())
@@ -298,6 +331,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
 	if uint64(contentLength) > t.ResponseSize {
+		Statsd.Increment("image.error.too_large")
 		return nil, fmt.Errorf("size too large: max size: %d, content-length: %d",t.ResponseSize, contentLength)
 	}
 
@@ -307,13 +341,17 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		Statsd.Increment("image.error.read")
 		return nil, err
 	}
+
+	timer.Send("request.get_image")
 
 	opt := ParseOptions(req.URL.Fragment)
 
 	img, err := Transform(b, opt,u.String())
 	if err != nil {
+		Statsd.Increment("image.error.transform")
 		glog.Errorf("error transforming image: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"),req.URL)
 		img = b
 	}

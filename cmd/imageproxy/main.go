@@ -29,6 +29,7 @@ import (
 	"github.com/wojtekzw/diskv"
 	"github.com/wojtekzw/imageproxy"
 	"sourcegraph.com/sourcegraph/s3cache"
+	"github.com/wojtekzw/statsd"
 )
 
 // goxc values
@@ -55,6 +56,8 @@ var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
 var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleUp to maxScaleUp times (eg. 4.0 means 100x100 can be resized do 200x200 or 300x133 etc.)")
 var version = flag.Bool("version", false, "print version information")
+var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
+var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
 
 func main() {
 	flag.Parse()
@@ -65,6 +68,11 @@ func main() {
 	}
 
 	c, err := parseCache()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	imageproxy.Statsd, err = parseStatsd()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -159,3 +167,25 @@ func diskCache(path string) *diskcache.Cache {
 	})
 	return diskcache.NewWithDiskv(d)
 }
+
+func parseStatsd() (statsd.Statser, error) {
+	var err error
+
+	var statserClient statsd.Statser
+
+	if len(*statsdAddr) > 0  {
+		statserClient, err = statsd.New(statsd.Address(*statsdAddr), statsd.Prefix(*statsdPrefix), statsd.MaxPacketSize(512))
+		if err != nil {
+			log.Printf("Error creating statsd client - setting empty client")
+			statserClient = &statsd.NoopClient{}
+			return statserClient, nil
+		}
+		return statserClient, nil
+
+	}
+
+	statserClient = &statsd.NoopClient{}
+	return statserClient, nil
+}
+
+

@@ -30,6 +30,8 @@ import (
 	"github.com/wojtekzw/imageproxy"
 	"sourcegraph.com/sourcegraph/s3cache"
 	"github.com/wojtekzw/statsd"
+	"runtime/debug"
+	"time"
 )
 
 // goxc values
@@ -118,6 +120,8 @@ func main() {
 
 	p.ScaleUp = *scaleUp
 
+	go freeMemory()
+
 	server := &http.Server{
 		Addr:    *addr,
 		Handler: p,
@@ -188,4 +192,10 @@ func parseStatsd() (statsd.Statser, error) {
 	return statserClient, nil
 }
 
+func freeMemory() {
+	for {
+		debug.FreeOSMemory()
+		time.Sleep(60 * time.Second)
+	}
 
+}

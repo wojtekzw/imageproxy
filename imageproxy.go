@@ -33,6 +33,7 @@ import (
 	"github.com/wojtekzw/httpcache"
 	"strconv"
 	"github.com/wojtekzw/statsd"
+	"os"
 
 )
 
@@ -40,11 +41,14 @@ const (
 	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error
 	// It is safety feature to protect memory
 	MaxRespBodySize = 10 * 1024 * 1024
+
+	DateFormat = "2006-01-02 15:04:05"
 )
 
 var (
 	concurrencyGuard = make(chan struct{}, 15)
 	Statsd statsd.Statser = &statsd.NoopClient{}
+	DebugFile *os.File
 )
 
 // Proxy serves image requests.
@@ -103,6 +107,12 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 // ServeHTTP handles image requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
+	DebugFile.WriteString(time.Now().Format(DateFormat) + " "+ r.Host + r.RequestURI+"\n")
+	DebugFile.Sync()
+
+	glog.Infof("pre-request: %v", r.URL.String())
+
+
 	Statsd.Increment("request.count.total")
 	if r.URL.Path == "/favicon.ico" {
 		Statsd.Increment("request.count.favicon")
@@ -132,7 +142,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	glog.Infof("concurrency: %d",lenCG)
 
 
-	glog.Infof("pre-request: %v", r.URL.String())
+
 
 	req, err := NewRequest(r, p.DefaultBaseURL)
 	if err != nil {

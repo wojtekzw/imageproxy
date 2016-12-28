@@ -32,6 +32,8 @@ import (
 	"github.com/wojtekzw/statsd"
 	"runtime/debug"
 	"time"
+	"os"
+	"path/filepath"
 )
 
 // goxc values
@@ -78,6 +80,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+
+	imageproxy.DebugFile, err = parseDebug()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer imageproxy.DebugFile.Close()
+	imageproxy.DebugFile.WriteString("# " + time.Now().Format(imageproxy.DateFormat) + " starting imageproxy\n")
+	imageproxy.DebugFile.Sync()
+
 
 	if *responseSize == 0 {
 		*responseSize = imageproxy.MaxRespBodySize
@@ -197,5 +209,15 @@ func freeMemory() {
 		debug.FreeOSMemory()
 		time.Sleep(60 * time.Second)
 	}
+
+}
+
+func parseDebug() (*os.File, error) {
+	var pathName string
+
+	pathName = "/tmp"
+
+	pathName = filepath.Join(pathName, "imageproxy-debug.log")
+	return os.OpenFile(pathName, os.O_APPEND | os.O_WRONLY | os.O_CREATE, 0666)
 
 }

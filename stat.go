@@ -17,13 +17,17 @@ func processMemStats(pid int32) (*process.MemoryInfoStat, error) {
 	return mem, nil
 }
 
-func printProcessMemStats() {
+func printProcessMemStatsWithPrefix(prefix string) {
 	m, e := processMemStats(int32(os.Getpid()))
 	if e != nil {
 		return
 	}
 
-	fmt.Printf("%v\n", m)
+	fmt.Printf("%s%v\n", prefix, m)
+}
+
+func printProcessMemStats() {
+	printProcessMemStatsWithPrefix("")
 }
 
 func statsdProcessMemStats(c statsd.Statser) {

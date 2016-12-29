@@ -35,12 +35,21 @@ import (
 	"github.com/wojtekzw/statsd"
 	"os"
 
+	"image"
+	_ "image/gif" // register gif format
+	_ "image/jpeg"
+	_ "image/png"
+
 )
 
 const (
 	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error
 	// It is safety feature to protect memory
 	MaxRespBodySize = 10 * 1024 * 1024
+
+	// MaxPixels - maximum size of image in pixels.  If image is larger Get(url) will return error
+	// It is safety feature to protect memory
+	MaxPixels = 40 * 1000 * 1000
 
 	DateFormat = "2006-01-02 15:04:05"
 )
@@ -341,8 +350,9 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
 	if uint64(contentLength) > t.ResponseSize {
-		Statsd.Increment("image.error.too_large")
-		return nil, fmt.Errorf("size too large: max size: %d, content-length: %d",t.ResponseSize, contentLength)
+		Statsd.Increment("image.error.too_large.bytes")
+		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d",t.ResponseSize,
+			contentLength)
 	}
 
 	//read data with limiter if there is no Content-Length header or it is fake
@@ -354,8 +364,22 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		Statsd.Increment("image.error.read")
 		return nil, err
 	}
-
 	timer.Send("request.get_image")
+
+
+	//check image size in pixels
+	imgReader := bytes.NewReader(b)
+	imgCfg, _, err := image.DecodeConfig(imgReader)
+	pixels := imgCfg.Height*imgCfg.Width
+	pixelSizeRatio := float64(pixels)/float64(MaxPixels)
+	glog.Infof("image: %s, pixel height: %d, pixel width: %d, pixels: %d", u.String(),
+		imgCfg.Height,imgCfg.Width,pixels)
+
+	if pixels > MaxPixels {
+		Statsd.Increment("image.error.too_large.pixels")
+		return nil, fmt.Errorf("size in pixels too large: max size: %d, real size: %d, ratio: %.2f",MaxPixels,
+			pixels, pixelSizeRatio)
+	}
 
 	opt := ParseOptions(req.URL.Fragment)
 

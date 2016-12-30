@@ -365,6 +365,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 	timer.Send("request.get_image")
+	Statsd.Gauge("request.size.bytes",len(b))
 
 
 	//check image size in pixels
@@ -375,6 +376,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	glog.Infof("image: %s, pixel height: %d, pixel width: %d, pixels: %d", u.String(),
 		imgCfg.Height,imgCfg.Width,pixels)
 
+	Statsd.Gauge("request.size.pixels",pixels)
 	if pixels > MaxPixels {
 		Statsd.Increment("image.error.too_large.pixels")
 		return nil, fmt.Errorf("size in pixels too large: max size: %d, real size: %d, ratio: %.2f",MaxPixels,

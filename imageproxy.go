@@ -146,16 +146,9 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	lenCG := len(concurrencyGuard)
 	Statsd.Gauge("concurrency",lenCG)
 
-
-
-	glog.Infof("concurrency: %d",lenCG)
-
-
-
-
 	req, err := NewRequest(r, p.DefaultBaseURL)
 	if err != nil {
-		msg := fmt.Sprintf("invalid request URL: %v", err)
+		msg := fmt.Sprintf("request: invalid URL: %v", err)
 		glog.Error(msg)
 		http.Error(w, msg, http.StatusBadRequest)
 		Statsd.Increment("request.error.invalid_request_url")
@@ -174,7 +167,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := p.Client.Get(req.String())
 	if err != nil {
-		msg := fmt.Sprintf("error fetching remote image: %v", err)
+		msg := fmt.Sprintf("request: error fetching remote image: %v", err)
 		glog.Error(msg)
 		http.Error(w, msg, http.StatusInternalServerError)
 		Statsd.Increment("request.error.fetch")
@@ -278,7 +271,7 @@ func validSignature(key []byte, r *Request) bool {
 
 	got, err := base64.URLEncoding.DecodeString(sig)
 	if err != nil {
-		glog.Errorf("error base64 decoding signature %q", r.Options.Signature)
+		glog.Errorf("signature: error base64 decoding signature %q", r.Options.Signature)
 		return false
 	}
 
@@ -337,7 +330,7 @@ type TransformingTransport struct {
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.URL.Fragment == "" {
 		// normal requests pass through
-		glog.Infof("fetching remote URL: %v", req.URL)
+		glog.Infof("request:pass through fetching remote URL: %v", req.URL)
 		return t.Transport.RoundTrip(req)
 	}
 
@@ -395,7 +388,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	img, err := Transform(b, opt,u.String())
 	if err != nil {
 		Statsd.Increment("image.error.transform")
-		glog.Errorf("error transforming image: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"),req.URL)
+		glog.Errorf("image: error transforming: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"),req.URL)
 		img = b
 	}
 

@@ -71,10 +71,8 @@ func Transform(img []byte, opt Options, url string) ([]byte, error) {
 	timerDecode = Statsd.NewTiming()
 
 	m, format, err := image.Decode(bytes.NewReader(img))
-
 	timerDecode.Send("transform.time.decode")
 
-	glog.Infof("transform:decode name: %s, format %v, err: %v", url, format,err)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +152,6 @@ func resizeParams(m image.Image, opt Options) (w, h int, resize bool) {
 		return 0, 0, false
 	}
 
-	glog.Infof("resizeParams: requested size: (%dx%d), calculated:(%dx%d), original: (%dx%d)", w, h, nW, nH, imgW, imgH)
 
 	// check ScaleUp limits (to protect memory) - max resize is set to 2 times more pixels
 	if opt.ScaleUp {
@@ -172,6 +169,8 @@ func resizeParams(m image.Image, opt Options) (w, h int, resize bool) {
 	if (w == imgW || w == 0) && (h == imgH || h == 0) {
 		return 0, 0, false
 	}
+
+	glog.Infof("resizeParams: requested size: (%dx%d), calculated:(%dx%d), original: (%dx%d)", w, h, nW, nH, imgW, imgH)
 
 	return w, h, true
 }

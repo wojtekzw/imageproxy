@@ -30,15 +30,17 @@ func printProcessMemStats() {
 	printProcessMemStatsWithPrefix("")
 }
 
-func statsdProcessMemStats(c statsd.Statser) {
+func statsdProcessMemStats(c statsd.Statser) (*process.MemoryInfoStat) {
 	m, e := processMemStats(int32(os.Getpid()))
 	if e != nil {
-		return
+		return  nil
 	}
 
 	c.Gauge("memory.rss", m.RSS)
 	c.Gauge("memory.vms", m.VMS)
 	c.Gauge("memory.swap", m.Swap)
+
+	return m
 
 }
 

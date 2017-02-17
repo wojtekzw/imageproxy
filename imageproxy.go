@@ -145,7 +145,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	lenCG := len(concurrencyGuard)
 	Statsd.Gauge("concurrency",lenCG)
-	statsdProcessMemStats(Statsd)
+
 
 
 	glog.Infof("concurrency: %d",lenCG)
@@ -184,6 +184,13 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cached := resp.Header.Get(httpcache.XFromCache)
 	glog.Infof("request: %v (served from cache: %v)", *req, cached == "1")
+	memory := statsdProcessMemStats(Statsd)
+	if memory.RSS >= 1024*1024*1024 {
+		DebugFile.WriteString("# " + time.Now().Format(DateFormat) + " memory RSS: "+ fmt.Sprintf("%d",memory.RSS) +"\n")
+		DebugFile.Sync()
+	}
+
+
 	if cached == "1" {
 		Statsd.Increment("request.cached")
 	} else {

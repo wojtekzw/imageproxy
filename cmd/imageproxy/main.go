@@ -139,7 +139,7 @@ func main() {
 		Handler: p,
 	}
 
-	fmt.Printf("imageproxy (version %v) listening on %s\n", Version, server.Addr)
+	fmt.Printf("imageproxy (version %v (build: %s, git hash: %s) listening on %s\n", Version, BuildDate, GitHash, server.Addr)
 	log.Fatal(server.ListenAndServe())
 
 }

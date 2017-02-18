@@ -1,17 +1,18 @@
 language: go
 
 go:
-  - 1.5
+  - 1.7.5
+  - tip
 
 sudo: false
 
-env:
-  - GO15VENDOREXPERIMENT=1
+# env:
+#   - GO15VENDOREXPERIMENT=1
 
 install:
-  - mkdir -p "$GOPATH/src/willnorris.com/go"
-  - mv "$TRAVIS_BUILD_DIR" "$GOPATH/src/willnorris.com/go/imageproxy"
-  - go get -v -t -d willnorris.com/go/imageproxy/...
+  # - mkdir -p "$GOPATH/src/willnorris.com/go"
+  # - mv "$TRAVIS_BUILD_DIR" "$GOPATH/src/willnorris.com/go/imageproxy"
+  - go get -v -t -d github.com/wojtekzw/imageproxy/...
 
 script:
-  - go test -v $(go list willnorris.com/go/imageproxy/... | grep -v vendor)
+  - go test -v $(go list github.com/wojtekzw/imageproxy/... | grep -v vendor | grep -v tools)

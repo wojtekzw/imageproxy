@@ -2,6 +2,7 @@ language: go
 
 go:
   - 1.7.5
+  - 1.8
   - tip
 
 sudo: false
@@ -10,8 +11,6 @@ sudo: false
 #   - GO15VENDOREXPERIMENT=1
 
 install:
-  # - mkdir -p "$GOPATH/src/willnorris.com/go"
-  # - mv "$TRAVIS_BUILD_DIR" "$GOPATH/src/willnorris.com/go/imageproxy"
   - go get -v -t -d github.com/wojtekzw/imageproxy/...
 
 script:

@@ -1,6 +1,11 @@
 # imageproxy [![Build Status](https://travis-ci.org/wojtekzw/imageproxy.svg?branch=master)](https://travis-ci.org/wojtekzw/imageproxy) [![GoDoc](https://godoc.org/willnorris.com/go/imageproxy?status.svg)](https://godoc.org/willnorris.com/go/imageproxy) [![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat)](LICENSE)
 
-imageproxy is a caching image proxy server written in go.  It features:
+[original]: https://github.com/willnorris/imageproxy
+[https://github.com/willnorris/imageproxy]: https://github.com/willnorris/imageproxy
+
+imageproxy is a caching image proxy server written in Go.  It is the fork of 
+[https://github.com/willnorris/imageproxy]. This README comes in over 90% from [original] with some changes to accommodate
+for feature changes in this fork. It features:
 
  - basic image adjustments like resizing, cropping, and rotation
  - access control using host whitelists or request signing (HMAC-SHA256)
@@ -8,7 +13,7 @@ imageproxy is a caching image proxy server written in go.  It features:
  - on-disk caching, respecting the cache headers of the original images
  - easy deployment, since it's pure go
 
-Personally, I use it primarily to dynamically resize images hosted on my own
+Originaly it is used by its primarily author to dynamically resize images hosted on my his
 site (read more in [this post][]).  But you can also enable request signing and
 use it as an SSL proxy for remote images, similar to [atmos/camo][] but with
 additional image adjustment options.
@@ -126,10 +131,7 @@ image][material-animation] resized to 200px square and rotated 270 degrees:
 
 Install the package using:
 
-    go get willnorris.com/go/imageproxy/cmd/imageproxy
-
-(Note that go1.2 and earlier may have trouble fetching the package with `go
-get`).
+    go get github.com/wojtekzw/imageproxy/cmd/imageproxy
 
 Once installed, ensure `$GOPATH/bin` is in your `$PATH`, then run the proxy
 using:
@@ -149,7 +151,7 @@ enabled using the `-cache` flag.  It supports the following values:
  - `memory` - uses an in-memory cache.  (This can exhaust your system's
    available memory and is not recommended for production systems)
  - directory on local disk (e.g. `/tmp/imageproxy`) - will cache images
-   on disk
+   on disk. 
  - s3 URL (e.g. `s3://s3-us-west-2.amazonaws.com/my-bucket`) - will cache
    images on Amazon S3.  This requires either an IAM role and instance profile
    with access to your your bucket or `AWS_ACCESS_KEY_ID` and `AWS_SECRET_KEY`
@@ -250,6 +252,21 @@ However, you can use the `scaleUp` command-line flag to allow this to happen:
 
     imageproxy -scaleUp true
 
+
+## Changes to [original] imageproxy ##
+
+All of these changes are to help stability of imageproxy: 
+-  maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled. 
+   Helps to protect server memory from being exhausted
+- responseSize - limit maximum size in bytes of image to be fetched and scaled. 
+  Do not try to scale too big images. Default is 10MB
+- maxPixels - limit maximum size in pixels for images to be transformed. If images if larger do not try to scale it.
+  Images must be 'unpacked' to memory so it helps to protect stability. (It is no ideal - smaller images can still 'unpack' to very large).
+  Hardcoded default is 40MP (40 megapixels)     
+- statsD - send internal server data to statsD daemon
+- diskcache - limit number of created files on disk (default 20000) and reload cache after restart (hardcoded in diskcache component) 
+- concurrency - limit concurrency of images transformation (default 15 concurrent transformations) - to preserve CPU
+ 
 ## Deploying ##
 
 You can build and deploy imageproxy using any standard go toolchain, but here's

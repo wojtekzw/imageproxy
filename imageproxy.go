@@ -340,7 +340,6 @@ type TransformingTransport struct {
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	fmt.Printf("URL fragment: %s\n",req.URL.Fragment)
 	if req.URL.Fragment == "" {
-		req.URL.Fragment = ""
 		// normal requests pass through
 		glog.Infof("request:pass through fetching remote URL: %v", req.URL)
 		return t.Transport.RoundTrip(req)

@@ -304,11 +304,11 @@ func TestProxy_ServeHTTP_is304(t *testing.T) {
 func TestTransformingTransport(t *testing.T) {
 	client := new(http.Client)
 	tr := &TransformingTransport{
-		Transport:     testTransport{},
-		CachingClient: client,
-		ResponseSize:  MaxRespBodySize,
+		Transport:       testTransport{},
+		CachingClient:   client,
+		MaxResponseSize: MaxRespBodySize,
 	}
-	// TODO: test ResponseSize works as designed
+	// TODO: test MaxResponseSize works as designed
 
 	client.Transport = tr
 

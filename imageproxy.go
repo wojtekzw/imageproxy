@@ -51,6 +51,9 @@ const (
 	// It is safety feature to protect memory
 	MaxPixels = 40 * 1000 * 1000
 
+	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event
+	DebugMemoryLimit = 2*1024*1024*1024
+
 	DateFormat = "2006-01-02 15:04:05"
 )
 
@@ -58,6 +61,7 @@ var (
 	concurrencyGuard = make(chan struct{}, 15)
 	Statsd statsd.Statser = &statsd.NoopClient{}
 	DebugFile *os.File
+	memoryLastSeen uint64 = 0
 )
 
 // Proxy serves image requests.
@@ -109,6 +113,7 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 	}
 
 	proxy.Client = client
+	
 
 	return &proxy
 }
@@ -178,9 +183,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cached := resp.Header.Get(httpcache.XFromCache)
 	glog.Infof("request: %v (served from cache: %v)", *req, cached == "1")
 	memory := statsdProcessMemStats(Statsd)
-	if memory.RSS >= 1024*1024*1024 {
+	if memory.RSS > memoryLastSeen && memory.RSS >= DebugMemoryLimit {
+		Statsd.Increment("memory.above_limit")
+		memoryLastSeen = memory.RSS
 		DebugFile.WriteString("# " + time.Now().Format(DateFormat) + " memory RSS: "+ fmt.Sprintf("%d",memory.RSS) +"\n")
 		DebugFile.Sync()
+	}
+	if memory.RSS < memoryLastSeen {
+		memoryLastSeen = memory.RSS
 	}
 
 
@@ -322,13 +332,15 @@ type TransformingTransport struct {
 	// responses are properly cached.
 	CachingClient *http.Client
 
-	// ResponseSize - maximum size of remote image to be be fetched by Client. If image is larger Get(url) will return error
-	ResponseSize uint64
+	// MaxResponseSize - maximum size of remote image to be be fetched by Client. If image is larger Get(url) will return error
+	MaxResponseSize uint64
 }
 
 // RoundTrip implements the http.RoundTripper interface.
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	fmt.Printf("URL fragment: %s\n",req.URL.Fragment)
 	if req.URL.Fragment == "" {
+		req.URL.Fragment = ""
 		// normal requests pass through
 		glog.Infof("request:pass through fetching remote URL: %v", req.URL)
 		return t.Transport.RoundTrip(req)
@@ -346,17 +358,24 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 
+	ct := resp.Header.Get("Content-Type")
+	switch ct {
+	case "image/jpg", "image/jpeg", "image/png", "image/gif":
+		break
+	default:
+		return nil, fmt.Errorf("error: invalid content-type: %s",ct)
+	}
 
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
-	if uint64(contentLength) > t.ResponseSize {
+	if uint64(contentLength) > t.MaxResponseSize {
 		Statsd.Increment("image.error.too_large.bytes")
-		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d",t.ResponseSize,
+		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d",t.MaxResponseSize,
 			contentLength)
 	}
 
 	//read data with limiter if there is no Content-Length header or it is fake
-	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.ResponseSize))
+	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.MaxResponseSize))
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)

@@ -269,31 +269,7 @@ All of these changes are to help stability of imageproxy:
  
 ## Deploying ##
 
-You can build and deploy imageproxy using any standard go toolchain, but here's
-how I do it.
-
-I use [goxc](https://github.com/laher/goxc) to build and deploy to an Ubuntu
-server.  I have a `$GOPATH/willnorris.com/go/imageproxy/.goxc.local.json` file
-which limits builds to 64-bit linux:
-
-``` json
- {
-   "ConfigVersion": "0.9",
-   "BuildConstraints": "linux,amd64"
- }
-```
-
-I then run `goxc` which compiles the static binary and creates a deb package at
-`build/0.2.1/imageproxy_0.2.1_amd64.deb` (or whatever the current version is).
-I copy this file to my server and install it using `sudo dpkg -i
-imageproxy_0.2.1_amd64.deb`, which is installed to `/usr/bin/imageproxy`.
-
-Ubuntu uses upstart to manage services, so I copy
-[`etc/imageproxy.conf`](etc/imageproxy.conf) to `/etc/init/imageproxy.conf` on
-my server and start it using `sudo service imageproxy start`.  You will
-certainly want to modify that upstart script to suit your desired
-configuration.
-
+You can build and deploy imageproxy using any standard go toolchain.
 ## Deploying to Heroku ##
 
 It's easy to vendorize the dependencies with `Godep` and deploy to Heroku. Take

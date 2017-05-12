@@ -1,8 +1,8 @@
 FROM google/golang
-MAINTAINER Sevki <s@sevki.org>
+MAINTAINER wojtekz <wojtekz@wp.pl>
 
-ADD . /go/src/willnorris.com/go/imageproxy
-RUN go get willnorris.com/go/imageproxy/cmd/imageproxy
+ADD . /go/src/github.com/wojtekzw/imageproxy
+RUN go get github.com/wojtekzw/imageproxy/cmd/imageproxy
 
 CMD []
 ENTRYPOINT ["/go/bin/imageproxy"]

@@ -338,7 +338,6 @@ type TransformingTransport struct {
 
 // RoundTrip implements the http.RoundTripper interface.
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	fmt.Printf("URL fragment: %s\n",req.URL.Fragment)
 	if req.URL.Fragment == "" {
 		// normal requests pass through
 		glog.Infof("request:pass through fetching remote URL: %v", req.URL)
@@ -357,12 +356,14 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 
-	ct := resp.Header.Get("Content-Type")
+	cts := resp.Header.Get("Content-Type")
+	ct := strings.TrimSpace(strings.SplitN(cts,";",2)[0])
 	switch ct {
 	case "image/jpg", "image/jpeg", "image/png", "image/gif":
 		break
 	default:
-		return nil, fmt.Errorf("error: invalid content-type: %s",ct)
+		Statsd.Increment("image.error.invalid_content_type")
+		return nil, fmt.Errorf("error: invalid content-type: %s => %s",cts,ct)
 	}
 
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
@@ -389,6 +390,11 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	//check image size in pixels
 	imgReader := bytes.NewReader(b)
 	imgCfg, _, err := image.DecodeConfig(imgReader)
+	if err != nil {
+		Statsd.Increment("image.error.invalid_format")
+		return nil, fmt.Errorf("invalid image format: %v, url: %s",err, u.String())
+	}
+
 	pixels := imgCfg.Height*imgCfg.Width
 	pixelSizeRatio := float64(pixels)/float64(MaxPixels)
 	glog.Infof("image: %s, pixel height: %d, pixel width: %d, pixels: %d", u.String(),

@@ -317,7 +317,7 @@ func TestTransformingTransport(t *testing.T) {
 		code        int
 		expectError bool
 	}{
-		{"http://good.test/png#1", http.StatusOK, false},
+		//{"http://good.test/png#1", http.StatusOK, false},
 		{"http://good.test/error#1", http.StatusInternalServerError, true},
 		// TODO: test more than just status code... verify that image
 		// is actually transformed and returned properly and that

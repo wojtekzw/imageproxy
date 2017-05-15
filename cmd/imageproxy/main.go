@@ -81,6 +81,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+	imageproxy.Statsd.Increment("exec.started")
 
 	imageproxy.DebugFile, err = parseDebug()
 	if err != nil {

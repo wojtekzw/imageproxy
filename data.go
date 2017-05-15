@@ -33,6 +33,10 @@ const (
 	optSignaturePrefix = "s"
 	optSizeDelimiter   = "x"
 	optScaleUp         = "scaleUp"
+	optCropWidth       = "cw"
+	optCropHeight      = "ch"
+	optCropX           = "ca"
+	optCropY           = "cb"
 )
 
 // URLError reports a malformed URL error.
@@ -71,6 +75,12 @@ type Options struct {
 	// Allow image to scale beyond its original dimensions.  This value
 	// will always be overwritten by the value of Proxy.ScaleUp.
 	ScaleUp bool
+
+	// Crop rectangle params
+	CropWidth int
+	CropHeight int
+	CropX int
+	CropY int
 }
 
 func (o Options) String() string {
@@ -97,6 +107,18 @@ func (o Options) String() string {
 	if o.ScaleUp {
 		fmt.Fprintf(buf, ",%s", optScaleUp)
 	}
+	if o.CropWidth != 0 {
+		fmt.Fprintf(buf, ",%s%d", optCropWidth, o.CropWidth)
+	}
+	if o.CropHeight != 0 {
+		fmt.Fprintf(buf, ",%s%d", optCropHeight, o.CropHeight)
+	}
+	if o.CropX != 0 {
+		fmt.Fprintf(buf, ",%s%d", optCropX, o.CropX)
+	}
+	if o.CropY != 0 {
+		fmt.Fprintf(buf, ",%s%d", optCropY, o.CropY)
+	}
 	return buf.String()
 }
 
@@ -104,7 +126,8 @@ func (o Options) String() string {
 // are not transform related at all (like Signature), and others only apply in
 // the presence of other fields (like Fit and Quality).
 func (o Options) transform() bool {
-	return o.Width != 0 || o.Height != 0 || o.Rotate != 0 || o.FlipHorizontal || o.FlipVertical
+	return o.Width != 0 || o.Height != 0 || o.Rotate != 0 || o.FlipHorizontal || o.FlipVertical ||
+		(o.CropHeight != 0 && o.CropWidth != 0)
 }
 
 // ParseOptions parses str as a list of comma separated transformation options.
@@ -154,16 +177,18 @@ func (o Options) transform() bool {
 //
 // Examples
 //
-// 	0x0       - no resizing
-// 	200x      - 200 pixels wide, proportional height
-// 	0.15x     - 15% original width, proportional height
-// 	x100      - 100 pixels tall, proportional width
-// 	100x150   - 100 by 150 pixels, cropping as needed
-// 	100       - 100 pixels square, cropping as needed
-// 	150,fit   - scale to fit 150 pixels square, no cropping
-// 	100,r90   - 100 pixels square, rotated 90 degrees
-// 	100,fv,fh - 100 pixels square, flipped horizontal and vertical
-// 	200x,q80  - 200 pixels wide, proportional height, 80% quality
+// 	0x0         - no resizing
+// 	200x        - 200 pixels wide, proportional height
+// 	0.15x       - 15% original width, proportional height
+// 	x100        - 100 pixels tall, proportional width
+// 	100x150     - 100 by 150 pixels, cropping as needed
+// 	100         - 100 pixels square, cropping as needed
+// 	150,fit     - scale to fit 150 pixels square, no cropping
+// 	100,r90     - 100 pixels square, rotated 90 degrees
+// 	100,fv,fh   - 100 pixels square, flipped horizontal and vertical
+// 	200x,q80    - 200 pixels wide, proportional height, 80% quality
+// 	cw100,ch200 - crop fragment that starts at (0,0), is 100px wide and 200px tall
+// 	cw100,ch200,ca10,ca20 - crop fragment that start at (10,20) is 100px wide and 200px tall
 func ParseOptions(str string) Options {
 	var options Options
 
@@ -187,6 +212,18 @@ func ParseOptions(str string) Options {
 			options.Quality, _ = strconv.Atoi(value)
 		case strings.HasPrefix(opt, optSignaturePrefix):
 			options.Signature = strings.TrimPrefix(opt, optSignaturePrefix)
+		case strings.HasPrefix(opt, optCropHeight):
+			value := strings.TrimPrefix(opt, optCropHeight)
+			options.CropHeight, _ = strconv.Atoi(value)
+		case strings.HasPrefix(opt, optCropWidth):
+			value := strings.TrimPrefix(opt, optCropWidth)
+			options.CropWidth, _ = strconv.Atoi(value)
+		case strings.HasPrefix(opt, optCropX):
+			value := strings.TrimPrefix(opt, optCropX)
+			options.CropX, _ = strconv.Atoi(value)
+		case strings.HasPrefix(opt, optCropY):
+			value := strings.TrimPrefix(opt, optCropY)
+			options.CropY, _ = strconv.Atoi(value)
 		case strings.Contains(opt, optSizeDelimiter):
 			size := strings.SplitN(opt, optSizeDelimiter, 2)
 			if w := size[0]; w != "" {
@@ -225,7 +262,7 @@ func (r Request) String() string {
 // NewRequest parses an http.Request into an imageproxy Request.  Options and
 // the remote image URL are specified in the request path, formatted as:
 // /{options}/{remote_url}.  Options may be omitted, so a request path may
-// simply contian /{remote_url}.  The remote URL must be an absolute "http" or
+// simply contain /{remote_url}.  The remote URL must be an absolute "http" or
 // "https" URL, should not be URL encoded, and may contain a query string.
 //
 // Assuming an imageproxy server running on localhost, the following are all

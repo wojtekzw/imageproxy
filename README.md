@@ -255,6 +255,7 @@ However, you can use the `scaleUp` command-line flag to allow this to happen:
 
 ## Changes to [original] imageproxy ##
 
+### Stability & monitoring ###
 All of these changes are to help stability of imageproxy: 
 -  maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled. 
    Helps to protect server memory from being exhausted
@@ -267,6 +268,16 @@ All of these changes are to help stability of imageproxy:
 - diskcache - limit number of created files on disk (default 20000) and reload cache after restart (hardcoded in diskcache component) 
 - concurrency - limit concurrency of images transformation (default 15 concurrent transformations) - to preserve CPU
  
+### Security ### 
+- imageproxy can use HTTP_PROXY to get external images. Proxy can be set either by setting HTTP_PROXY environment variable or
+    by setting command line option `-httpProxy`. Command line takes precedence over environment variable. 
+    Example:
+```
+imageproxy -httpProxy "http://127.0.0.1:8888"
+```
+- imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
+
+
 ## Deploying ##
 
 You can build and deploy imageproxy using any standard go toolchain.

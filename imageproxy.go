@@ -353,7 +353,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	u.Fragment = ""
 	resp, err := t.CachingClient.Get(u.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error in client request: %v",err)
 	}
 
 	cts := resp.Header.Get("Content-Type")

@@ -62,6 +62,8 @@ var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleU
 var version = flag.Bool("version", false, "print version information")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
+var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
+
 
 func main() {
 	flag.Parse()
@@ -82,6 +84,10 @@ func main() {
 	}
 
 	imageproxy.Statsd.Increment("exec.started")
+	proxyUrl, err := url.Parse(*httpProxy)
+	if err == nil {
+		os.Setenv("HTTP_PROXY", proxyUrl.String())
+	}
 
 	imageproxy.DebugFile, err = parseDebug()
 	if err != nil {

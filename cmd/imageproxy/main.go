@@ -59,6 +59,7 @@ var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max 
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
 var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleUp to maxScaleUp times (eg. 4.0 means 100x100 can be resized do 200x200 or 300x133 etc.)")
+var timeout = flag.Duration("timeout", 0, "time limit for requests served by this proxy")
 var version = flag.Bool("version", false, "print version information")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
@@ -137,6 +138,7 @@ func main() {
 		}
 	}
 
+	p.Timeout = *timeout
 	p.ScaleUp = *scaleUp
 
 	go freeMemory()

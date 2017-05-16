@@ -40,6 +40,8 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	tphttp "willnorris.com/go/imageproxy/third_party/http"
+
 )
 
 const (
@@ -62,6 +64,7 @@ var (
 	Statsd statsd.Statser = &statsd.NoopClient{}
 	DebugFile *os.File
 	memoryLastSeen uint64 = 0
+
 )
 
 // Proxy serves image requests.
@@ -88,6 +91,11 @@ type Proxy struct {
 
 	// Allow images to scale beyond their original dimensions.
 	ScaleUp bool
+
+	// Timeout specifies a time limit for requests served by this Proxy.
+	// If a call runs for longer than its time limit, a 504 Gateway Timeout
+	// response is returned.  A Timeout of zero means no timeout.
+	Timeout time.Duration
 }
 
 // NewProxy constructs a new proxy.  The provided http RoundTripper will be
@@ -118,7 +126,7 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 	return &proxy
 }
 
-// ServeHTTP handles image requests.
+// ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	DebugFile.WriteString(time.Now().Format(DateFormat) + " "+ r.Host + r.RequestURI+"\n")
@@ -150,6 +158,17 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	lenCG := len(concurrencyGuard)
 	Statsd.Gauge("concurrency",lenCG)
+
+
+	var h http.Handler = http.HandlerFunc(p.serveImage)
+	if p.Timeout > 0 {
+		h = tphttp.TimeoutHandler(h, p.Timeout, "Gateway timeout waiting for remote resource.")
+	}
+	h.ServeHTTP(w, r)
+}
+
+// serveImage handles incoming requests for proxied images.
+func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 
 	req, err := NewRequest(r, p.DefaultBaseURL)
 	if err != nil {

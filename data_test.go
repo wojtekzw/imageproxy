@@ -99,6 +99,10 @@ func TestParseOptions(t *testing.T) {
 		{"q70,cw100,cx300,1x2,fit,ch200,r90,fv,cy400,fh,sc0ffee", Options{1, 2, true, 90, true, true, 70, "c0ffee", false, 100, 200, 300, 400}},
 		{"cy400,r90,cx300,fh,sc0ffee,cw100,q90,ch200,1x2,fv,fit", Options{1, 2, true, 90, true, true, 90, "c0ffee", false, 100, 200, 300, 400}},
 
+		// all flags, in different orders with crop & different resizes
+		{"q70,cw100,cx300,x2,fit,ch200,r90,fv,cy400,fh,sc0ffee", Options{0, 2, true, 90, true, true, 70, "c0ffee", false, 100, 200, 300, 400}},
+		{"cy400,r90,cx300,fh,sc0ffee,cw100,q90,ch200,1x,fv,fit", Options{1, 0, true, 90, true, true, 90, "c0ffee", false, 100, 200, 300, 400}},
+		{"cy400,r90,cx300,fh,sc0ffee,cw100,q90,ch200,cx,fv,fit", Options{0, 0, true, 90, true, true, 90, "c0ffee", false, 100, 200, 0, 400}},
 
 	}
 

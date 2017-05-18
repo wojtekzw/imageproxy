@@ -14,7 +14,8 @@
 
 // Package imageproxy provides an image proxy server.  For typical use of
 // creating and using a Proxy, see cmd/imageproxy/main.go.
-package imageproxy
+
+package imageproxy // import "github.com/wojtekzw/imageproxy"
 
 import (
 	"bufio"

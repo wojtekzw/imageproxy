@@ -64,6 +64,12 @@ always, the original aspect ratio will be preserved. Specifying the `fit`
 option with only one of either width or height does the same thing as if `fit`
 had not been specified.
 
+#### Absolute crop mode ####
+
+Starting point can be added (top,left) `cx{start_x},cy{start_y` eg. cx10,cy20 - that means start crop from (10,20)
+in original image. And size of the crop can be set `cw{width},ch{height}` eg. cw100,ch200 - that means width=100, height=200.
+After absolute crop all other transformations are applied to the new cropped image.
+
 #### Rotate ####
 
 The `r{degrees}` option will rotate the image the specified number of degrees,
@@ -277,6 +283,9 @@ imageproxy -httpProxy "http://127.0.0.1:8888"
 ```
 - imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
 
+### Features ###
+- Absolute crop added with cx{start_x},cy{start_y}-  left & top point and cw{width}, ch{height} in pixels. Crop is applied before other operations. Crop mode comes from 
+`github.com/maciejtarnowski/imageproxy`
 
 ## Deploying ##
 

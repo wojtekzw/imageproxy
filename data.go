@@ -130,6 +130,54 @@ func (o Options) transform() bool {
 		(o.CropHeight != 0 && o.CropWidth != 0)
 }
 
+type transOpts struct {
+	resize bool
+	rotate bool
+	fit bool
+	quality bool
+	signature bool
+	flipH bool
+	flipV bool
+	absCrop bool
+	transform bool
+}
+
+
+func (o Options) transformOpts() transOpts {
+
+	ops := transOpts{}
+
+	if o.Width != 0 || o.Height != 0 {
+		ops.resize = true
+	}
+
+	if o.Rotate != 0 {
+		ops.rotate = true
+	}
+
+	if o.CropHeight != 0 && o.CropWidth != 0 {
+		ops.absCrop = true
+	}
+
+	if o.Signature != "" {
+		ops.signature = true
+	}
+
+	if o.Quality != 0 {
+		ops.quality = true
+	}
+
+	ops.flipH = o.FlipHorizontal
+	ops.flipV = o.FlipVertical
+	ops.fit = o.Fit
+
+	ops.transform = o.transform()
+
+	return ops
+
+}
+
+
 // ParseOptions parses str as a list of comma separated transformation options.
 // The following options can be specified in any order:
 //

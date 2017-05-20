@@ -54,9 +54,11 @@ func Transform(img []byte, opt Options, url string) ([]byte, error) {
 	imgSize := imageSizes{initial: len(img)}
 
 
+	ops:= opt.transformOpts()
+	sendToStatsd(Statsd,ops)
+
 	if !opt.transform() {
 		// bail if no transformation was requested
-		Statsd.Increment("transform.noop")
 		return img, nil
 	}
 
@@ -283,4 +285,43 @@ func newSize(newW, newH, orgW, orgH int) (int, int, error) {
 	}
 
 	return newW, newH, nil
+}
+
+
+func sendToStatsd(s statsd.Statser, ops transOpts) {
+	if ops.quality {
+		s.Increment("transform.quality")
+	}
+	if ops.signature {
+		s.Increment("transform.signature")
+	}
+
+	if ops.absCrop {
+		s.Increment("transform.abs_crop")
+	}
+
+	if ops.flipH {
+		s.Increment("transform.flip_h")
+	}
+
+	if ops.flipV {
+		s.Increment("transform.flip_v")
+	}
+	if ops.rotate {
+		s.Increment("transform.rotate")
+	}
+
+	if ops.resize {
+		s.Increment("transform.resize")
+	}
+
+	if ops.fit {
+		s.Increment("transform.fit")
+	}
+
+	if !ops.transform {
+		s.Increment("transform.noop")
+	} else {
+		s.Increment("transform.transform")
+	}
 }

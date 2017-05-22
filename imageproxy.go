@@ -130,9 +130,6 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	DebugFile.WriteString(time.Now().Format(DateFormat) + " "+ r.Host + r.RequestURI+"\n")
-	DebugFile.Sync()
-
 	glog.Infof("pre-request: %v", r.URL.String())
 
 
@@ -235,7 +232,12 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	copyHeader(w, resp, "Content-Type")
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
+
 	Statsd.Increment("request.code."+ strconv.Itoa(resp.StatusCode))
+
+	DebugFile.WriteString(time.Now().Format(DateFormat) + " "+ r.Host + r.RequestURI+" "+resp.Header.Get("Content-Length")+"\n")
+	DebugFile.Sync()
+
 }
 
 func copyHeader(w http.ResponseWriter, r *http.Response, header string) {

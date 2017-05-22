@@ -40,6 +40,14 @@
     tags:
       - clean_logs
 
+#  - name: Create imageproxy debug log
+#    file:
+#      path: "/tmp/imageproxy-debug.log"
+#      state: absent
+#    tags:
+#      - clean_debug_log
+
+
 
   - name: Start imageproxy
     supervisorctl:

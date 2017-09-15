@@ -4,3 +4,6 @@ build
 .idea
 cmd/imageproxy/builds
 tools
+data
+Gopkg.lock
+

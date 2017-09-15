@@ -28,21 +28,21 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
+
 	"github.com/golang/glog"
 	"github.com/wojtekzw/httpcache"
-	"strconv"
 	"github.com/wojtekzw/statsd"
-	"os"
 
 	"image"
 	_ "image/gif" // register gif format
 	_ "image/jpeg"
 	_ "image/png"
 
-	tphttp "willnorris.com/go/imageproxy/third_party/http"
-
+	tphttp "github.com/wojtekzw/imageproxy/third_party/http"
 )
 
 const (
@@ -55,17 +55,16 @@ const (
 	MaxPixels = 40 * 1000 * 1000
 
 	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event
-	DebugMemoryLimit = 2*1024*1024*1024
+	DebugMemoryLimit = 2 * 1024 * 1024 * 1024
 
 	DateFormat = "2006-01-02 15:04:05"
 )
 
 var (
-	concurrencyGuard = make(chan struct{}, 15)
-	Statsd statsd.Statser = &statsd.NoopClient{}
-	DebugFile *os.File
-	memoryLastSeen uint64 = 0
-
+	concurrencyGuard                = make(chan struct{}, 15)
+	Statsd           statsd.Statser = &statsd.NoopClient{}
+	DebugFile        *os.File
+	memoryLastSeen   uint64
 )
 
 // Proxy serves image requests.
@@ -122,7 +121,6 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 	}
 
 	proxy.Client = client
-	
 
 	return &proxy
 }
@@ -131,7 +129,6 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	glog.Infof("pre-request: %v", r.URL.String())
-
 
 	Statsd.Increment("request.count.total")
 	if r.URL.Path == "/favicon.ico" {
@@ -145,7 +142,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	var timer statsd.Timinger
 
 	timer = Statsd.NewTiming()
@@ -155,8 +151,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() { <-concurrencyGuard }()
 
 	lenCG := len(concurrencyGuard)
-	Statsd.Gauge("concurrency",lenCG)
-
+	Statsd.Gauge("concurrency", lenCG)
 
 	var h http.Handler = http.HandlerFunc(p.serveImage)
 	if p.Timeout > 0 {
@@ -203,13 +198,12 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	if memory.RSS > memoryLastSeen && memory.RSS >= DebugMemoryLimit {
 		Statsd.Increment("memory.above_limit")
 		memoryLastSeen = memory.RSS
-		DebugFile.WriteString("# " + time.Now().Format(DateFormat) + " memory RSS: "+ fmt.Sprintf("%d",memory.RSS) +"\n")
+		DebugFile.WriteString("# " + time.Now().Format(DateFormat) + " memory RSS: " + fmt.Sprintf("%d", memory.RSS) + "\n")
 		DebugFile.Sync()
 	}
 	if memory.RSS < memoryLastSeen {
 		memoryLastSeen = memory.RSS
 	}
-
 
 	if cached == "1" {
 		Statsd.Increment("request.cached")
@@ -233,9 +227,9 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 
-	Statsd.Increment("request.code."+ strconv.Itoa(resp.StatusCode))
+	Statsd.Increment("request.code." + strconv.Itoa(resp.StatusCode))
 
-	DebugFile.WriteString(time.Now().Format(DateFormat) + " "+ r.Host + r.RequestURI+" "+resp.Header.Get("Content-Length")+"\n")
+	DebugFile.WriteString(time.Now().Format(DateFormat) + " " + r.Host + r.RequestURI + " " + resp.Header.Get("Content-Length") + "\n")
 	DebugFile.Sync()
 
 }
@@ -366,7 +360,6 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return t.Transport.RoundTrip(req)
 	}
 
-
 	var timer statsd.Timinger
 
 	timer = Statsd.NewTiming()
@@ -375,24 +368,24 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	u.Fragment = ""
 	resp, err := t.CachingClient.Get(u.String())
 	if err != nil {
-		return nil, fmt.Errorf("Error in client request: %v",err)
+		return nil, fmt.Errorf("Error in client request: %v", err)
 	}
 
 	cts := resp.Header.Get("Content-Type")
-	ct := strings.TrimSpace(strings.SplitN(cts,";",2)[0])
+	ct := strings.TrimSpace(strings.SplitN(cts, ";", 2)[0])
 	switch ct {
 	case "image/jpg", "image/jpeg", "image/png", "image/gif":
 		break
 	default:
 		Statsd.Increment("image.error.invalid_content_type")
-		return nil, fmt.Errorf("error: invalid content-type: %s => %s",cts,ct)
+		return nil, fmt.Errorf("error: invalid content-type: %s => %s", cts, ct)
 	}
 
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
 	if uint64(contentLength) > t.MaxResponseSize {
 		Statsd.Increment("image.error.too_large.bytes")
-		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d",t.MaxResponseSize,
+		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d", t.MaxResponseSize,
 			contentLength)
 	}
 
@@ -406,35 +399,34 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, err
 	}
 	timer.Send("request.get_image")
-	Statsd.Gauge("request.size.bytes",len(b))
-
+	Statsd.Gauge("request.size.bytes", len(b))
 
 	//check image size in pixels
 	imgReader := bytes.NewReader(b)
 	imgCfg, _, err := image.DecodeConfig(imgReader)
 	if err != nil {
 		Statsd.Increment("image.error.invalid_format")
-		return nil, fmt.Errorf("invalid image format: %v, url: %s",err, u.String())
+		return nil, fmt.Errorf("invalid image format: %v, url: %s", err, u.String())
 	}
 
-	pixels := imgCfg.Height*imgCfg.Width
-	pixelSizeRatio := float64(pixels)/float64(MaxPixels)
+	pixels := imgCfg.Height * imgCfg.Width
+	pixelSizeRatio := float64(pixels) / float64(MaxPixels)
 	glog.Infof("image: %s, pixel height: %d, pixel width: %d, pixels: %d", u.String(),
-		imgCfg.Height,imgCfg.Width,pixels)
+		imgCfg.Height, imgCfg.Width, pixels)
 
-	Statsd.Gauge("request.size.pixels",pixels)
+	Statsd.Gauge("request.size.pixels", pixels)
 	if pixels > MaxPixels {
 		Statsd.Increment("image.error.too_large.pixels")
-		return nil, fmt.Errorf("size in pixels too large: max size: %d, real size: %d, ratio: %.2f",MaxPixels,
+		return nil, fmt.Errorf("size in pixels too large: max size: %d, real size: %d, ratio: %.2f", MaxPixels,
 			pixels, pixelSizeRatio)
 	}
 
 	opt := ParseOptions(req.URL.Fragment)
 
-	img, err := Transform(b, opt,u.String())
+	img, err := Transform(b, opt, u.String())
 	if err != nil {
 		Statsd.Increment("image.error.transform")
-		glog.Errorf("image: error transforming: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"),req.URL)
+		glog.Errorf("image: error transforming: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"), req.URL)
 		img = b
 	}
 

@@ -6,4 +6,4 @@ cmd/imageproxy/builds
 tools
 data
 Gopkg.lock
-
+vendor

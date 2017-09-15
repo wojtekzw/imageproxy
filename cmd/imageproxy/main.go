@@ -22,19 +22,22 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"strings"
-
-	"github.com/wojtekzw/httpcache"
-	"github.com/wojtekzw/httpcache/diskcache"
-	"github.com/wojtekzw/diskv"
-	"github.com/wojtekzw/imageproxy"
-	"sourcegraph.com/sourcegraph/s3cache"
-	"github.com/wojtekzw/statsd"
-	"runtime/debug"
-	"time"
 	"os"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
+	"time"
 
+	"github.com/PaulARoy/azurestoragecache"
+	"github.com/diegomarangoni/gcscache"
+	"github.com/garyburd/redigo/redis"
+	rediscache "github.com/gregjones/httpcache/redis"
+	"github.com/wojtekzw/diskv"
+	"github.com/wojtekzw/httpcache"
+	"github.com/wojtekzw/httpcache/diskcache"
+	"github.com/wojtekzw/imageproxy"
+	"github.com/wojtekzw/imageproxy/internal/s3cache"
+	"github.com/wojtekzw/statsd"
 )
 
 // goxc values
@@ -54,8 +57,6 @@ var whitelist = flag.String("whitelist", "", "comma separated list of allowed re
 var referrers = flag.String("referrers", "", "comma separated list of allowed referring hosts")
 var baseURL = flag.String("baseURL", "", "default base URL for relative remote URLs")
 var cache = flag.String("cache", "", "location to cache images (see https://github.com/wojtekzw/imageproxy#cache)")
-var cacheDir = flag.String("cacheDir", "", "(Deprecated; use 'cache' instead) directory to use for file cache")
-var cacheSize = flag.Uint64("cacheSize", 0, "Deprecated: this flag does nothing")
 var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max size of original proxied request")
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
@@ -66,12 +67,11 @@ var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compa
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
 var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
 
-
 func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate,GitHash)
+		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate, GitHash)
 		return
 	}
 
@@ -98,7 +98,6 @@ func main() {
 	defer imageproxy.DebugFile.Close()
 	imageproxy.DebugFile.WriteString("# " + time.Now().Format(imageproxy.DateFormat) + " starting imageproxy\n")
 	imageproxy.DebugFile.Sync()
-
 
 	if *responseSize == 0 {
 		*responseSize = imageproxy.MaxRespBodySize
@@ -157,9 +156,6 @@ func main() {
 // parseCache parses the cache-related flags and returns the specified Cache implementation.
 func parseCache() (imageproxy.Cache, error) {
 	if *cache == "" {
-		if *cacheDir != "" {
-			return diskCache(*cacheDir), nil
-		}
 		return nil, nil
 	}
 
@@ -174,8 +170,17 @@ func parseCache() (imageproxy.Cache, error) {
 
 	switch u.Scheme {
 	case "s3":
-		u.Scheme = "https"
-		return s3cache.New(u.String()), nil
+		return s3cache.New(u.String())
+	case "gcs":
+		return gcscache.New(u.String()), nil
+	case "azure":
+		return azurestoragecache.New("", "", u.Host)
+	case "redis":
+		conn, err := redis.DialURL(u.String(), redis.DialPassword(os.Getenv("REDIS_PASSWORD")))
+		if err != nil {
+			return nil, err
+		}
+		return rediscache.NewWithClient(conn), nil
 	case "file":
 		fallthrough
 	default:
@@ -188,8 +193,8 @@ func diskCache(path string) *diskcache.Cache {
 		BasePath: path,
 
 		// For file "c0ffee", store file as "c0/ff/c0ffee"
-		Transform: func(s string) []string { return []string{s[0:2], s[2:4]} },
-		CacheSizeMax: 200*1024*1024,
+		Transform:    func(s string) []string { return []string{s[0:2], s[2:4]} },
+		CacheSizeMax: 200 * 1024 * 1024,
 	})
 	return diskcache.NewWithDiskv(d)
 }
@@ -199,7 +204,7 @@ func parseStatsd() (statsd.Statser, error) {
 
 	var statserClient statsd.Statser
 
-	if len(*statsdAddr) > 0  {
+	if len(*statsdAddr) > 0 {
 		statserClient, err = statsd.New(statsd.Address(*statsdAddr), statsd.Prefix(*statsdPrefix), statsd.MaxPacketSize(512))
 		if err != nil {
 			log.Printf("Error creating statsd client - setting empty client")
@@ -228,6 +233,6 @@ func parseDebug() (*os.File, error) {
 	pathName = "/tmp"
 
 	pathName = filepath.Join(pathName, "imageproxy-debug.log")
-	return os.OpenFile(pathName, os.O_APPEND | os.O_WRONLY | os.O_CREATE, 0666)
+	return os.OpenFile(pathName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 
 }

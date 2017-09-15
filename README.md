@@ -9,7 +9,7 @@ for feature changes in this fork. It features:
 
  - basic image adjustments like resizing, cropping, and rotation
  - access control using host whitelists or request signing (HMAC-SHA256)
- - support for jpeg, png, and gif image formats (including animated gifs)
+ - support for jpeg, png, webp (decode only), tiff, and gif image formats (including animated gifs)
  - on-disk caching, respecting the cache headers of the original images
  - easy deployment, since it's pure go
 
@@ -28,8 +28,10 @@ imageproxy URLs are of the form `http://localhost/{options}/{remote_url}`.
 
 ### Options ###
 
-Options are specified as a comma delimited list of parameters, which can be
-supplied in any order.  Duplicate parameters overwrite previous values.
+Options are available for cropping, resizing, rotation, flipping, and digital
+signatures among a few others.  Options for are specified as a comma delimited
+list of parameters, which can be supplied in any order.  Duplicate parameters
+overwrite previous values.
 
 The format is a superset of [resize.ly's options](https://resize.ly/#demo).
 
@@ -95,6 +97,10 @@ provided to the imageproxy server on startup.
 See [URL Signing](https://github.com/willnorris/imageproxy/wiki/URL-signing)
 for examples of generating signatures.
 
+#### All options #### 
+See the full list of available options at
+<https://godoc.org/willnorris.com/go/imageproxy#ParseOptions>.
+
 ### Remote URL ###
 
 The URL of the original image to load is specified as the remainder of the
@@ -116,14 +122,15 @@ source image][small-things], which measures 1024 by 678 pixels.
 Options | Meaning                                  | Image
 --------|------------------------------------------|------
 200x    | 200px wide, proportional height          | <a href="https://willnorris.com/api/imageproxy/200x/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/200x/https://willnorris.com/2013/12/small-things.jpg" alt="200x"></a>
-0.15x   | 15% original width, proportional height  | <a href="https://willnorris.com/api/imageproxy/0.15x/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/0.15x/https://willnorris.com/2013/12/small-things.jpg" alt="0.15x"></a>
-x100    | 100px tall, proportional width           | <a href="https://willnorris.com/api/imageproxy/x100/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/x100/https://willnorris.com/2013/12/small-things.jpg" alt="x100"></a>
+x0.15   | 15% original height, proportional width  | <a href="https://willnorris.com/api/imageproxy/x0.15/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/x0.15/https://willnorris.com/2013/12/small-things.jpg" alt="x0.15"></a>
 100x150 | 100 by 150 pixels, cropping as needed    | <a href="https://willnorris.com/api/imageproxy/100x150/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/100x150/https://willnorris.com/2013/12/small-things.jpg" alt="100x150"></a>
 100     | 100px square, cropping as needed         | <a href="https://willnorris.com/api/imageproxy/100/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/100/https://willnorris.com/2013/12/small-things.jpg" alt="100"></a>
 150,fit | scale to fit 150px square, no cropping   | <a href="https://willnorris.com/api/imageproxy/150,fit/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/150,fit/https://willnorris.com/2013/12/small-things.jpg" alt="150,fit"></a>
 100,r90 | 100px square, rotated 90 degrees         | <a href="https://willnorris.com/api/imageproxy/100,r90/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/100,r90/https://willnorris.com/2013/12/small-things.jpg" alt="100,r90"></a>
 100,fv,fh | 100px square, flipped horizontal and vertical | <a href="https://willnorris.com/api/imageproxy/100,fv,fh/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/100,fv,fh/https://willnorris.com/2013/12/small-things.jpg" alt="100,fv,fh"></a>
 200x,q60 | 200px wide, proportional height, 60% quality | <a href="https://willnorris.com/api/imageproxy/200x,q60/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/200x,q60/https://willnorris.com/2013/12/small-things.jpg" alt="200x,q60"></a>
+200x,png | 200px wide, converted to PNG format | <a href="https://willnorris.com/api/imageproxy/200x,png/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/200x,png/https://willnorris.com/2013/12/small-things.jpg" alt="200x,png"></a>
+cx175,cw400,ch300,100x | crop to 400x300px starting at (175,0), scale to 100px wide | <a href="https://willnorris.com/api/imageproxy/cx175,cw400,ch300,100x/https://willnorris.com/2013/12/small-things.jpg"><img src="https://willnorris.com/api/imageproxy/cx175,cw400,ch300,100x/https://willnorris.com/2013/12/small-things.jpg" alt="cx175,cw400,ch300,100x"></a>
 
 Transformation also works on animated gifs.  Here is [this source
 image][material-animation] resized to 200px square and rotated 270 degrees:
@@ -157,11 +164,23 @@ enabled using the `-cache` flag.  It supports the following values:
  - `memory` - uses an in-memory cache.  (This can exhaust your system's
    available memory and is not recommended for production systems)
  - directory on local disk (e.g. `/tmp/imageproxy`) - will cache images
-   on disk. 
- - s3 URL (e.g. `s3://s3-us-west-2.amazonaws.com/my-bucket`) - will cache
+   on disk
+ - s3 URL (e.g. `s3://region/bucket-name/optional-path-prefix`) - will cache
    images on Amazon S3.  This requires either an IAM role and instance profile
    with access to your your bucket or `AWS_ACCESS_KEY_ID` and `AWS_SECRET_KEY`
-   environmental parameters set.
+   environmental variables be set. (Additional methods of loading credentials
+   are documented in the [aws-sdk-go session
+   package](https://docs.aws.amazon.com/sdk-for-go/api/aws/session/)).
+ - gcs URL (e.g. `gcs://bucket-name/optional-path-prefix`) - will cache images
+   on Google Cloud Storage.  This requires `GCP_PRIVATE_KEY` environmental
+   variable be set.
+ - azure URL (e.g. `azure://container-name/`) - will cache images on
+   Azure Storage.  This requires `AZURESTORAGE_ACCOUNT_NAME` and
+ - redis URL (e.g. `redis://hostname/`) - will cache images on
+   the specified redis host. The full URL syntax is defined by the [redis URI
+   registration](https://www.iana.org/assignments/uri-schemes/prov/redis).
+   Rather than specify password in the URI, use the `REDIS_PASSWORD`
+   environment variable.
 
 For example, to cache files on disk in the `/tmp/imageproxy` directory:
 
@@ -230,12 +249,6 @@ If both a whiltelist and signatureKey are specified, requests can match either.
 In other words, requests that match one of the whitelisted hosts don't
 necessarily need to be signed, though they can be.
 
-
-Run `imageproxy -help` for a complete list of flags the command accepts.  If
-you want to use a different caching implementation, it's probably easiest to
-just make a copy of `cmd/imageproxy/main.go` and customize it to fit your
-needs... it's a very simple command.
-
 ### Default Base URL ###
 
 Typically, remote images to be proxied are specified as absolute URLs.
@@ -258,6 +271,25 @@ However, you can use the `scaleUp` command-line flag to allow this to happen:
 
     imageproxy -scaleUp true
 
+### WebP and TIFF support ###
+
+Imageproxy can proxy remote webp images, but they will be served in either jpeg
+or png format (this is because the golang webp library only supports webp
+decoding) if any transformation is requested.  If no format is specified,
+imageproxy will use jpeg by default.  If no transformation is requested (for
+example, if you are just using imageproxy as an SSL proxy) then the original
+webp image will be served as-is without any format conversion.
+
+Because so few browsers support tiff images, they will be converted to jpeg by
+default if any transformation is requested. To force encoding as tiff, pass the
+"tiff" option. Like webp, tiff images will be served as-is without any format
+conversion if no transformation is requested.
+
+
+Run `imageproxy -help` for a complete list of flags the command accepts.  If
+you want to use a different caching implementation, it's probably easiest to
+just make a copy of `cmd/imageproxy/main.go` and customize it to fit your
+needs... it's a very simple command.
 
 ## Changes to [original] imageproxy ##
 
@@ -275,42 +307,39 @@ All of these changes are to help stability of imageproxy:
 - concurrency - limit concurrency of images transformation (default 15 concurrent transformations) - to preserve CPU
  
 ### Security ### 
+
 - imageproxy can use HTTP_PROXY to get external images. Proxy can be set either by setting HTTP_PROXY environment variable or
     by setting command line option `-httpProxy`. Command line takes precedence over environment variable. 
     Example:
-```
+
+```shell
 imageproxy -httpProxy "http://127.0.0.1:8888"
 ```
+
 - imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
 
-### Features ###
-- Absolute crop added with cx{start_x},cy{start_y}-  left & top point and cw{width}, ch{height} in pixels. Crop is applied before other operations. Crop mode comes from 
-`github.com/maciejtarnowski/imageproxy`
 
 ## Deploying ##
 
-You can build and deploy imageproxy using any standard go toolchain.
-## Deploying to Heroku ##
+In most cases, you can follow the normal procedure for building a deploying any
+go application.  For example, I build it directly on my production debian server
+using:
+
+ - `go build gtihub.com/wojtekzw/imageproxy/cmd/imageproxy`
+ - copy resulting binary to `/usr/local/bin`
+ - copy [`etc/imageproxy.service`](etc/imageproxy.service) to
+   `/lib/systemd/system` and enable using `systemctl`.
+
+Instructions have been contributed below for running on other platforms, but I
+don't have much experience with them personally.
+
+### Heroku ###
 
 It's easy to vendorize the dependencies with `Godep` and deploy to Heroku. Take
 a look at [this GitHub repo](https://github.com/oreillymedia/prototype-imageproxy)
 
-## Docker ##
 
-A docker image is available at [`willnorris/imageproxy`](https://registry.hub.docker.com/u/willnorris/imageproxy/dockerfile/).
-
-You can run it by
-```
-docker run -p 8080:8080 willnorris/imageproxy -addr 0.0.0.0:8080
-```
-
-Or in your Dockerfile:
-
-```
-ENTRYPOINT ["/go/bin/imageproxy", "-addr 0.0.0.0:8080"]
-```
-
-## nginx
+### nginx ###
 
 You can use follow config to prevent URL overwritting:
 

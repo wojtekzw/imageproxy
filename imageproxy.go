@@ -136,8 +136,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return // ignore favicon requests
 	}
 
-	if r.URL.Path == "/health-check" {
-		Statsd.Increment("request.count.health_check")
+	if r.URL.Path == "/health" {
+		Statsd.Increment("request.count.health")
+		fmt.Fprint(w, "OK")
+		return
+	}
+
+	if r.URL.Path == "/" {
+		Statsd.Increment("request.count.root")
 		fmt.Fprint(w, "OK")
 		return
 	}
@@ -211,19 +217,18 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 		Statsd.Increment("request.not_cached")
 	}
 
-	copyHeader(w, resp, "Cache-Control")
-	copyHeader(w, resp, "Last-Modified")
-	copyHeader(w, resp, "Expires")
-	copyHeader(w, resp, "Etag")
-	copyHeader(w, resp, "Link")
+	copyHeader(w.Header(), resp.Header, "Cache-Control", "Last-Modified", "Expires", "Etag", "Link")
 
-	if is304 := check304(r, resp); is304 {
+	if should304(r, resp) {
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 
-	copyHeader(w, resp, "Content-Length")
-	copyHeader(w, resp, "Content-Type")
+	copyHeader(w.Header(), resp.Header, "Content-Length", "Content-Type")
+
+	//Enable CORS for 3rd party applications
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 
@@ -234,10 +239,20 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func copyHeader(w http.ResponseWriter, r *http.Response, header string) {
-	key := http.CanonicalHeaderKey(header)
-	if value, ok := r.Header[key]; ok {
-		w.Header()[key] = value
+// copyHeader copies header values from src to dst, adding to any existing
+// values with the same header name.  If keys is not empty, only those header
+// keys will be copied.
+func copyHeader(dst, src http.Header, keys ...string) {
+	if len(keys) == 0 {
+		for k, _ := range src {
+			keys = append(keys, k)
+		}
+	}
+	for _, key := range keys {
+		k := http.CanonicalHeaderKey(key)
+		for _, v := range src[k] {
+			dst.Add(k, v)
+		}
 	}
 }
 
@@ -308,10 +323,10 @@ func validSignature(key []byte, r *Request) bool {
 	return hmac.Equal(got, want)
 }
 
-// check304 checks whether we should send a 304 Not Modified in response to
+// should304 returns whether we should send a 304 Not Modified in response to
 // req, based on the response resp.  This is determined using the last modified
 // time and the entity tag of resp.
-func check304(req *http.Request, resp *http.Response) bool {
+func should304(req *http.Request, resp *http.Response) bool {
 	// TODO(willnorris): if-none-match header can be a comma separated list
 	// of multiple tags to be matched, or the special value "*" which
 	// matches all etags
@@ -381,6 +396,11 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, fmt.Errorf("error: invalid content-type: %s => %s", cts, ct)
 	}
 
+	if should304(req, resp) {
+		// bare 304 response, full response will be used from cache
+		return &http.Response{StatusCode: http.StatusNotModified}, nil
+	}
+
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
 	// no data reading - check first Content-Length
 	if uint64(contentLength) > t.MaxResponseSize {
@@ -391,6 +411,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	//read data with limiter if there is no Content-Length header or it is fake
 	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.MaxResponseSize))
+
 	defer resp.Body.Close()
 
 	b, err := ioutil.ReadAll(resp.Body)
@@ -433,7 +454,11 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	// replay response with transformed image and updated content length
 	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
-	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
+	resp.Header.WriteSubset(buf, map[string]bool{
+		"Content-Length": true,
+		// exclude Content-Type header if the format may have changed during transformation
+		"Content-Type": opt.Format != "" || resp.Header.Get("Content-Type") == "image/webp" || resp.Header.Get("Content-Type") == "image/tiff",
+	})
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
 	buf.Write(img)
 

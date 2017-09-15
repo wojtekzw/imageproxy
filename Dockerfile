@@ -1,4 +1,4 @@
-FROM google/golang
+FROM golang:1.8
 MAINTAINER wojtekz <wojtekz@wp.pl>
 
 ADD . /go/src/github.com/wojtekzw/imageproxy

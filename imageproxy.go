@@ -14,7 +14,6 @@
 
 // Package imageproxy provides an image proxy server.  For typical use of
 // creating and using a Proxy, see cmd/imageproxy/main.go.
-
 package imageproxy // import "github.com/wojtekzw/imageproxy"
 
 import (
@@ -46,29 +45,32 @@ import (
 )
 
 const (
-	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error
-	// It is safety feature to protect memory
+	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error.
+	// It is safety feature to protect memory.
 	MaxRespBodySize = 10 * 1024 * 1024
 
-	// MaxPixels - maximum size of image in pixels.  If image is larger Get(url) will return error
-	// It is safety feature to protect memory
+	// MaxPixels - maximum size of image in pixels.  If image is larger Get(url) will return error.
+	// It is safety feature to protect memory.
 	MaxPixels = 40 * 1000 * 1000
 
-	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event
+	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event.
 	DebugMemoryLimit = 2 * 1024 * 1024 * 1024
 
-	// DateFormat - default format used in logging
+	// DateFormat - default format used in logging.
 	DateFormat = "2006-01-02 15:04:05"
 
-	// maxConcurrency - max number of parallel image requests
+	// maxConcurrency - max number of parallel image requests.
 	maxConcurrency = 15
 )
 
 var (
-	concurrencyGuard                = make(chan struct{}, maxConcurrency)
-	Statsd           statsd.Statser = &statsd.NoopClient{}
-	DebugFile        *os.File
-	memoryLastSeen   uint64
+	concurrencyGuard = make(chan struct{}, maxConcurrency)
+	// Statsd - global statsd client to send metrics.
+	Statsd statsd.Statser = &statsd.NoopClient{}
+	// DebugFile - additionl debug file - to be removed.
+	// TODO
+	DebugFile      *os.File
+	memoryLastSeen uint64
 )
 
 // Proxy serves image requests.
@@ -257,7 +259,7 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 // keys will be copied.
 func copyHeader(dst, src http.Header, keys ...string) {
 	if len(keys) == 0 {
-		for k, _ := range src {
+		for k := range src {
 			keys = append(keys, k)
 		}
 	}

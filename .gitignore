@@ -7,3 +7,4 @@ tools
 data
 Gopkg.lock
 vendor
+cmd/imageproxy/imageproxy

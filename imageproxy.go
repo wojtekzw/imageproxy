@@ -57,11 +57,15 @@ const (
 	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event
 	DebugMemoryLimit = 2 * 1024 * 1024 * 1024
 
+	// DateFormat - default format used in logging
 	DateFormat = "2006-01-02 15:04:05"
+
+	// maxConcurrency - max number of parallel image requests
+	maxConcurrency = 15
 )
 
 var (
-	concurrencyGuard                = make(chan struct{}, 15)
+	concurrencyGuard                = make(chan struct{}, maxConcurrency)
 	Statsd           statsd.Statser = &statsd.NoopClient{}
 	DebugFile        *os.File
 	memoryLastSeen   uint64
@@ -137,7 +141,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/health" {
-		Statsd.Increment("request.count.health")
+		if l := len(concurrencyGuard); l >= maxConcurrency-2 {
+			Statsd.Increment("request.count.health.too_many_req")
+			w.WriteHeader(503)
+			fmt.Fprintf(w, "error: too many concurrent image transform requests: %d", l)
+			return
+		}
+
+		Statsd.Increment("request.count.health.ok")
 		fmt.Fprint(w, "OK")
 		return
 	}
@@ -147,6 +158,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "OK")
 		return
 	}
+
+	Statsd.Increment("request.count.image")
 
 	var timer statsd.Timinger
 

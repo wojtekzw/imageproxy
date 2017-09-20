@@ -23,9 +23,12 @@ build-golang-1.9:
     - export GOPATH=$GOPATH:$WORKSPACE
     - mkdir -p $WORKSPACE/src/$NAME
     - cd $WORKSPACE/src/$NAME
+    - pwd
     - ln -s $CI_PROJECT_DIR .
     - cd $(basename $CI_PROJECT_DIR)
+    - pwd
     - cd $CMDDIR
+    - pwd
     - go build
 
 test-golang-1.9:

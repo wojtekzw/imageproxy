@@ -28,9 +28,9 @@ build-golang-1.9:
     - ln -s $CI_PROJECT_DIR .
     - cd $(basename $CI_PROJECT_DIR)
     - pwd
+    - ls -la vendor/github.com/wojtekzw
     - cd $CMDDIR
     - pwd
-    - ls -la $(basename $CI_PROJECT_DIR)/vendor/github.com/wojtekzw
     - go build
 
 test-golang-1.9:

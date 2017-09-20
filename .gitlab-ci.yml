@@ -9,9 +9,9 @@ stages:
 image: golang:1.9
 
 variables:
-  PREFIX: "wojtekz"
+  PREFIX: "github.com/wojtekzw/"
   WORKSPACE: "/workspace"
-#  if CMDDIR == $WORKSPACE/src/$NAME then set CMDDIR="."
+#  if CMDDIR == "" then set CMDDIR="."
   CMDDIR: "cmd/imageproxy"
 
 
@@ -21,16 +21,11 @@ build-golang-1.9:
    - test-ci
   script:
     - export GOPATH=$GOPATH:$WORKSPACE
-    - echo $GOPATH
-    - mkdir -p $WORKSPACE/src/$NAME
-    - cd $WORKSPACE/src/$NAME
-    - pwd
+    - mkdir -p $WORKSPACE/src/${PREFIX}${NAME}
+    - cd $WORKSPACE/src/${PREFIX}${NAME}
     - ln -s $CI_PROJECT_DIR .
     - cd $(basename $CI_PROJECT_DIR)
-    - pwd
-    - ls -laR
     - cd $CMDDIR
-    - pwd
     - go build
 
 test-golang-1.9:
@@ -38,12 +33,12 @@ test-golang-1.9:
   tags:
    - test-ci
   script:
-    - export GOPATH=$GOPATH:$WORKSPACE
-    - mkdir -p $WORKSPACE/src/$NAME
-    - cd $WORKSPACE/src/$NAME
-    - ln -s $CI_PROJECT_DIR .
-    - cd $(basename $CI_PROJECT_DIR)
-    - go test -v -cover
+   - export GOPATH=$GOPATH:$WORKSPACE
+   - mkdir -p $WORKSPACE/src/${PREFIX}${NAME}
+   - cd $WORKSPACE/src/${PREFIX}${NAME}
+   - ln -s $CI_PROJECT_DIR .
+   - cd $(basename $CI_PROJECT_DIR)
+   - go test -v -cover
 
 
 bench-golang-1.9:
@@ -51,12 +46,12 @@ bench-golang-1.9:
   tags:
    - test-ci
   script:
-    - export GOPATH=$GOPATH:$WORKSPACE
-    - mkdir -p $WORKSPACE/src/$NAME
-    - cd $WORKSPACE/src/$NAME
-    - ln -s $CI_PROJECT_DIR .
-    - cd $(basename $CI_PROJECT_DIR)
-    - go test -bench .
+   - export GOPATH=$GOPATH:$WORKSPACE
+   - mkdir -p $WORKSPACE/src/${PREFIX}${NAME}
+   - cd $WORKSPACE/src/${PREFIX}${NAME}
+   - ln -s $CI_PROJECT_DIR .
+   - cd $(basename $CI_PROJECT_DIR)
+   - go test -bench .
 
 
 test-golang-latest:
@@ -65,10 +60,10 @@ test-golang-latest:
   tags:
    - test-ci
   script:
-    - export GOPATH=$GOPATH:$WORKSPACE
-    - mkdir -p $WORKSPACE/src/$NAME
-    - cd $WORKSPACE/src/$NAME
-    - ln -s $CI_PROJECT_DIR .
-    - cd $(basename $CI_PROJECT_DIR)
-    - go version
-    - go test -v -cover
+   - export GOPATH=$GOPATH:$WORKSPACE
+   - mkdir -p $WORKSPACE/src/${PREFIX}${NAME}
+   - cd $WORKSPACE/src/${PREFIX}${NAME}
+   - ln -s $CI_PROJECT_DIR .
+   - cd $(basename $CI_PROJECT_DIR)
+   - go version
+   - go test -v -cover

@@ -21,6 +21,7 @@ build-golang-1.9:
    - test-ci
   script:
     - export GOPATH=$GOPATH:$WORKSPACE
+    - echo $GOPATH
     - mkdir -p $WORKSPACE/src/$NAME
     - cd $WORKSPACE/src/$NAME
     - pwd
@@ -29,6 +30,7 @@ build-golang-1.9:
     - pwd
     - cd $CMDDIR
     - pwd
+    - ls -la $(basename $CI_PROJECT_DIR)/vendor/github.com/wojtekzw
     - go build
 
 test-golang-1.9:

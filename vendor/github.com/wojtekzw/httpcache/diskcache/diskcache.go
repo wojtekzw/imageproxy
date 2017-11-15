@@ -60,10 +60,10 @@ func (c *Cache) Set(key string, resp []byte) {
 // Delete removes the response with key from the cache
 func (c *Cache) Delete(key string) {
 	f := keyToFilename(key)
-	err := c.d.Erase(key)
+	err := c.d.Erase(f)
 	c.send(deleteOp, key, f, err)
 	// remove from key cache
-	c.kc.Remove(key)
+	c.kc.Remove(f)
 }
 
 func (c *Cache) events() <-chan eventMsg {

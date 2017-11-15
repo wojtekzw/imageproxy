@@ -86,9 +86,9 @@ func main() {
 	}
 
 	imageproxy.Statsd.Increment("exec.started")
-	proxyUrl, err := url.Parse(*httpProxy)
+	proxyURL, err := url.Parse(*httpProxy)
 	if err == nil {
-		os.Setenv("HTTP_PROXY", proxyUrl.String())
+		os.Setenv("HTTP_PROXY", proxyURL.String())
 	}
 
 	imageproxy.DebugFile, err = parseDebug()

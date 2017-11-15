@@ -79,7 +79,7 @@
 #      - new_config
 
 
-  - name: Restart logserver
+  - name: Restart imageproxy
     supervisorctl:
       name: imageproxy
       state: started

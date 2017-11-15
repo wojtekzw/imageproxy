@@ -31,7 +31,7 @@ func buildLoadingARCacheWithExpiration(size int, ep time.Duration) Cache {
 }
 
 func evictedFuncForARC(key, value interface{}) {
-	fmt.Printf("[ARC] Key:%v Value:%v will evicted.\n", key, value)
+	fmt.Printf("[ARC] Key:%v Value:%v will be evicted.\n", key, value)
 }
 
 func TestARCGet(t *testing.T) {
@@ -68,7 +68,7 @@ func TestARCLength(t *testing.T) {
 
 func TestARCEvictItem(t *testing.T) {
 	cacheSize := 10
-	numbers := 11
+	numbers := cacheSize + 1
 	gc := buildLoadingARCache(cacheSize)
 
 	for i := 0; i < numbers; i++ {
@@ -76,6 +76,31 @@ func TestARCEvictItem(t *testing.T) {
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
 		}
+	}
+}
+
+func TestARCPurgeCache(t *testing.T) {
+	cacheSize := 10
+	purgeCount := 0
+	gc := New(cacheSize).
+		ARC().
+		LoaderFunc(loader).
+		PurgeVisitorFunc(func(k, v interface{}) {
+			purgeCount++
+		}).
+		Build()
+
+	for i := 0; i < cacheSize; i++ {
+		_, err := gc.Get(fmt.Sprintf("Key-%d", i))
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		}
+	}
+
+	gc.Purge()
+
+	if purgeCount != cacheSize {
+		t.Errorf("failed to purge everything")
 	}
 }
 

@@ -9,7 +9,7 @@ Package httpcache provides a http.RoundTripper implementation that works as a mo
 
 It is only suitable for use as a 'private' cache (i.e. for a web-browser or an API-client and not for a shared proxy).
 
-**Documentation:** http://godoc.org/github.com/gregjones/httpcache
+**Documentation:** <http://godoc.org/github.com/gregjones/httpcache>
 
 **License:** MIT (see LICENSE.txt)
 

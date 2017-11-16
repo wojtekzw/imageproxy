@@ -16,7 +16,7 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/golang/glog"
-	"github.com/wojtekzw/diskv"
+	"github.com/peterbourgon/diskv"
 )
 
 const maxEventChanLen = 1024

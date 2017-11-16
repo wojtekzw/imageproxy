@@ -32,7 +32,7 @@ import (
 	"github.com/diegomarangoni/gcscache"
 	"github.com/garyburd/redigo/redis"
 	rediscache "github.com/gregjones/httpcache/redis"
-	"github.com/wojtekzw/diskv"
+	"github.com/peterbourgon/diskv"
 	"github.com/wojtekzw/httpcache"
 	"github.com/wojtekzw/httpcache/diskcache"
 	"github.com/wojtekzw/imageproxy"

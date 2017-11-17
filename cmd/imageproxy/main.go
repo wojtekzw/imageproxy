@@ -28,13 +28,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bluele/gcache"
+	"github.com/wojtekzw/limitedcache"
+
 	"github.com/PaulARoy/azurestoragecache"
 	"github.com/diegomarangoni/gcscache"
 	"github.com/garyburd/redigo/redis"
+	"github.com/gregjones/httpcache"
+	"github.com/gregjones/httpcache/diskcache"
 	rediscache "github.com/gregjones/httpcache/redis"
 	"github.com/peterbourgon/diskv"
-	"github.com/wojtekzw/httpcache"
-	"github.com/wojtekzw/httpcache/diskcache"
 	"github.com/wojtekzw/imageproxy"
 	"github.com/wojtekzw/imageproxy/internal/s3cache"
 	"github.com/wojtekzw/statsd"
@@ -57,6 +60,7 @@ var whitelist = flag.String("whitelist", "", "comma separated list of allowed re
 var referrers = flag.String("referrers", "", "comma separated list of allowed referring hosts")
 var baseURL = flag.String("baseURL", "", "default base URL for relative remote URLs")
 var cache = flag.String("cache", "", "location to cache images (see https://github.com/wojtekzw/imageproxy#cache)")
+var cacheLimit = flag.Uint("cacheLimit", 100000, "maximum number of items in disk cache")
 var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max size of original proxied request")
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
@@ -74,6 +78,8 @@ func main() {
 		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate, GitHash)
 		return
 	}
+
+	parseLog("/tmp/imageproxy/logs")
 
 	c, err := parseCache()
 	if err != nil {
@@ -148,7 +154,7 @@ func main() {
 		Handler: p,
 	}
 
-	fmt.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s\n", Version, BuildDate, GitHash, server.Addr)
+	log.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s\n", Version, BuildDate, GitHash, server.Addr)
 	log.Fatal(server.ListenAndServe())
 
 }
@@ -184,11 +190,11 @@ func parseCache() (imageproxy.Cache, error) {
 	case "file":
 		fallthrough
 	default:
-		return diskCache(u.Path), nil
+		return diskCache(u.Path, *cacheLimit), nil
 	}
 }
 
-func diskCache(path string) *diskcache.Cache {
+func diskCache(path string, limit uint) imageproxy.Cache {
 	d := diskv.New(diskv.Options{
 		BasePath: path,
 
@@ -196,7 +202,41 @@ func diskCache(path string) *diskcache.Cache {
 		Transform:    func(s string) []string { return []string{s[0:2], s[2:4]} },
 		CacheSizeMax: 200 * 1024 * 1024,
 	})
-	return diskcache.NewWithDiskv(d)
+
+	if limit == 0 {
+		return diskcache.NewWithDiskv(d)
+	}
+
+	c := limitedcache.NewWithDiskv(d, int(limit))
+	go removeFullPictFromCache(c, 512)
+	return c
+}
+
+func removeFullPictFromCache(c *limitedcache.Cache, limit int) {
+	ec := c.Events()
+	cleanCache := gcache.New(limit).LFU().EvictedFunc(func(key, value interface{}) {
+		c.Delete(key.(string))
+	}).Build()
+
+	for {
+
+		select {
+		case ev := <-ec:
+			log.Printf("op: %s, url: %s ", ev.Operation(), ev.Key())
+			if ev.OperationID() == limitedcache.SetOp && ev.Status() == nil && toDel(ev.Key()) {
+				log.Printf("to delete: %s", ev.Key())
+				cleanCache.Set(ev.Key(), ev)
+			}
+			if ev.OperationID() == limitedcache.DeleteOp {
+				log.Printf("cache deleted: %s, err: %v", ev.Key(), ev.Status())
+			}
+		}
+	}
+}
+
+func toDel(key string) bool {
+	i := strings.Index(key, "#")
+	return i == -1
 }
 
 func parseStatsd() (statsd.Statser, error) {
@@ -225,6 +265,15 @@ func freeMemory() {
 		time.Sleep(60 * time.Second)
 	}
 
+}
+func parseLog(pathName string) {
+
+	pathName = filepath.Join(pathName, "imageproxy.log")
+	f, err := os.OpenFile(pathName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		panic(err)
+	}
+	log.SetOutput(f)
 }
 
 func parseDebug() (*os.File, error) {

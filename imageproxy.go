@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -41,6 +43,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 
+	"github.com/bluele/gcache"
 	tphttp "github.com/wojtekzw/imageproxy/third_party/http"
 )
 
@@ -71,6 +74,9 @@ var (
 	// TODO
 	DebugFile      *os.File
 	memoryLastSeen uint64
+
+	allowedHosts    = gcache.New(1024).LRU().Build()
+	notAllowedHosts = gcache.New(1024).LRU().Build()
 )
 
 // Proxy serves image requests.
@@ -196,7 +202,7 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	// assign static settings from proxy to req.Options
 	req.Options.ScaleUp = p.ScaleUp
 
-	if err = p.allowed(req); err != nil {
+	if err = p.allowed(req, cname); err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		Statsd.Increment("request.error.not_allowed")
@@ -274,7 +280,7 @@ func copyHeader(dst, src http.Header, keys ...string) {
 // allowed determines whether the specified request contains an allowed
 // referrer, host, and signature.  It returns an error if the request is not
 // allowed.
-func (p *Proxy) allowed(r *Request) error {
+func (p *Proxy) allowed(r *Request, cnFunc func(string) (string, error)) error {
 	if len(p.Referrers) > 0 && !validReferrer(p.Referrers, r.Original) {
 		return fmt.Errorf("request does not contain an allowed referrer: %v", r)
 	}
@@ -283,7 +289,7 @@ func (p *Proxy) allowed(r *Request) error {
 		return nil // no whitelist or signature key, all requests accepted
 	}
 
-	if len(p.Whitelist) > 0 && validHost(p.Whitelist, r.URL) {
+	if len(p.Whitelist) > 0 && validHostCached(p.Whitelist, r.URL, cnFunc) {
 		return nil
 	}
 
@@ -294,17 +300,126 @@ func (p *Proxy) allowed(r *Request) error {
 	return fmt.Errorf("request does not contain an allowed host or valid signature: %v", r)
 }
 
-// validHost returns whether the host in u matches one of hosts.
-func validHost(hosts []string, u *url.URL) bool {
+// // validHost returns whether the host in u matches one of hosts.
+// func validHost(hosts []string, u *url.URL) bool {
+// 	if _, err := allowedHosts.Get(u.Host); err == nil {
+// 		log.Printf("cache hit allowed: %s", u.Host)
+// 		return true
+// 	}
+// 	if _, err := notAllowedHosts.Get(u.Host); err == nil {
+// 		log.Printf("cache hit disallowed: %s", u.Host)
+// 		return false
+// 	}
+
+// 	for _, host := range hosts {
+
+// 		if u.Host == host {
+// 			allowedHosts.Set(u.Host, struct{}{})
+// 			return true
+// 		}
+// 		if strings.HasPrefix(host, "*.") && strings.HasSuffix(u.Host, host[2:]) {
+// 			allowedHosts.Set(u.Host, struct{}{})
+// 			return true
+// 		}
+// 		cname, err := net.LookupCNAME(u.Host)
+// 		if len(cname) > 1 {
+// 			cname = cname[:len(cname)-1]
+// 		}
+// 		if err == nil {
+// 			for _, chost := range hosts {
+// 				log.Printf("pattern: %s, cname: %s, host: %s", chost, cname, u.Host)
+// 				if cname == chost {
+// 					allowedHosts.Set(u.Host, struct{}{})
+// 					log.Printf("OK eq %s", u.Host)
+// 					return true
+// 				}
+// 				if strings.HasPrefix(chost, "*.") && strings.HasSuffix(cname, chost[2:]) {
+// 					allowedHosts.Set(u.Host, struct{}{})
+// 					log.Printf("OK suffix: %s", u.Host)
+// 					return true
+// 				}
+// 			}
+// 		}
+// 	}
+// 	log.Printf("NOT OK: %s", u.Host)
+// 	notAllowedHosts.Set(u.Host, struct{}{})
+// 	return false
+// }
+
+// // validHost returns whether the host in u matches one of hosts.
+// func validHost(hosts []string, u *url.URL) bool {
+// 	for _, host := range hosts {
+// 		if u.Host == host {
+// 			return true
+// 		}
+// 		if strings.HasPrefix(host, "*.") && strings.HasSuffix(u.Host, host[2:]) {
+// 			return true
+// 		}
+// 	}
+
+// 	return false
+// }
+
+func cname(h string) (string, error) {
+	c, err := net.LookupCNAME(h)
+	if len(c) > 0 {
+		c = c[:len(c)-1]
+	}
+	return c, err
+}
+
+// validHostSimple returns whether the host in u matches one of hosts.
+func validHostSimple(hosts []string, h string) bool {
+	if len(h) == 0 {
+		return false
+	}
 	for _, host := range hosts {
-		if u.Host == host {
+		if h == host {
 			return true
 		}
-		if strings.HasPrefix(host, "*.") && strings.HasSuffix(u.Host, host[2:]) {
+		if strings.HasPrefix(host, "*.") && strings.HasSuffix(h, host[2:]) {
 			return true
 		}
 	}
 
+	return false
+}
+
+// validHostWithCNAME returns whether the host in u matches one of hosts or their CNAMEs.
+func validHostWithCNAME(hosts []string, u *url.URL, cnFunc func(string) (string, error)) bool {
+
+	if validHostSimple(hosts, u.Host) {
+		return true
+	}
+
+	name, err := cnFunc(u.Host)
+
+	if err == nil && validHostSimple(hosts, name) {
+		return true
+	}
+
+	return false
+}
+
+func validHostCached(hosts []string, u *url.URL, cnFunc func(string) (string, error)) bool {
+	log.Printf("validHostCached: %s", u.Host)
+
+	if _, err := allowedHosts.Get(u.Host); err == nil {
+		log.Printf("cache hit allowed: %s", u.Host)
+		return true
+	}
+	if _, err := notAllowedHosts.Get(u.Host); err == nil {
+		log.Printf("cache hit disallowed: %s", u.Host)
+		return false
+	}
+
+	if validHostWithCNAME(hosts, u, cnFunc) {
+		log.Printf("cache add allowed: %s", u.Host)
+		allowedHosts.Set(u.Host, struct{}{})
+		return true
+	}
+	log.Printf("cache add disallowed: %s", u.Host)
+	notAllowedHosts.Set(u.Host, struct{}{})
 	return false
 }
 
@@ -315,7 +430,7 @@ func validReferrer(hosts []string, r *http.Request) bool {
 		return false
 	}
 
-	return validHost(hosts, u)
+	return validHostSimple(hosts, u.Host)
 }
 
 // validSignature returns whether the request signature is valid.

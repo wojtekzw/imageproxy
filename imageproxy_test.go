@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -97,7 +99,7 @@ func TestCopyHeader(t *testing.T) {
 }
 
 func TestAllowed(t *testing.T) {
-	whitelist := []string{"good"}
+	whitelist := []string{"good", "good.ref", "good.nosig"}
 	key := []byte("c0ffee")
 
 	genRequest := func(headers map[string]string) *http.Request {
@@ -106,6 +108,13 @@ func TestAllowed(t *testing.T) {
 			req.Header.Set(key, value)
 		}
 		return req
+	}
+
+	cnameTest := func(s string) (string, error) {
+		switch s {
+		default:
+			return "", fmt.Errorf("no cname record")
+		}
 	}
 
 	tests := []struct {
@@ -125,8 +134,8 @@ func TestAllowed(t *testing.T) {
 		{"http://bad/image", emptyOptions, whitelist, nil, nil, nil, false},
 
 		// referrer
-		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{"Referer": "http://good/foo"}), true},
-		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{"Referer": "http://bad/foo"}), false},
+		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{"Referer": "http://good.ref/foo"}), true},
+		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{"Referer": "http://bad.ref/foo"}), false},
 		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{"Referer": "MALFORMED!!"}), false},
 		{"http://test/image", emptyOptions, nil, whitelist, nil, genRequest(map[string]string{}), false},
 
@@ -136,9 +145,9 @@ func TestAllowed(t *testing.T) {
 		{"http://test/image", emptyOptions, nil, nil, key, nil, false},
 
 		// whitelist and signature
-		{"http://good/image", emptyOptions, whitelist, nil, key, nil, true},
+		{"http://good.nosig/image", emptyOptions, whitelist, nil, key, nil, true},
 		{"http://bad/image", Options{Signature: "gWivrPhXBbsYEwpmWAKjbJEiAEgZwbXbltg95O2tgNI="}, nil, nil, key, nil, true},
-		{"http://bad/image", emptyOptions, whitelist, nil, key, nil, false},
+		{"http://bad.nosig/image", emptyOptions, whitelist, nil, key, nil, false},
 	}
 
 	for _, tt := range tests {
@@ -152,7 +161,7 @@ func TestAllowed(t *testing.T) {
 			t.Errorf("error parsing url %q: %v", tt.url, err)
 		}
 		req := &Request{u, tt.options, tt.request}
-		if got, want := p.allowed(req), tt.allowed; (got == nil) != want {
+		if got, want := p.allowed(req, cnameTest), tt.allowed; (got == nil) != want {
 			t.Errorf("allowed(%q) returned %v, want %v.\nTest struct: %#v", req, got, want, tt)
 		}
 	}
@@ -175,15 +184,35 @@ func TestValidHost(t *testing.T) {
 		{"http://c.test/image", false},
 		{"http://xc.test/image", false},
 		{"/image", false},
+
+		{"http://d.test/image", true},
+		{"http://e.test/image", true},
+		{"http://a.f.test/image", false},
+		{"http://b.f.test/image", false},
+		{"http://xxx.test/image", false},
 	}
 
+	cnameTest := func(s string) (string, error) {
+		switch s {
+		case "d.test":
+			return "a.test", nil
+		case "e.test":
+			return "b.test", nil
+		case "a.f.test":
+			return "", nil
+		case "b.f.test":
+			return "xxx", fmt.Errorf("invalid cname query")
+		default:
+			return "", fmt.Errorf("no cname record")
+		}
+	}
 	for _, tt := range tests {
 		u, err := url.Parse(tt.url)
 		if err != nil {
 			t.Errorf("error parsing url %q: %v", tt.url, err)
 		}
-		if got, want := validHost(whitelist, u), tt.valid; got != want {
-			t.Errorf("validHost(%v, %q) returned %v, want %v", whitelist, u, got, want)
+		if got, want := validHostWithCNAME(whitelist, u, cnameTest), tt.valid; got != want {
+			t.Errorf("validHostExtended(%v, %q) returned %v, want %v", whitelist, u, got, want)
 		}
 	}
 }
@@ -408,4 +437,8 @@ func TestTransformingTransport(t *testing.T) {
 			t.Errorf("RoundTrip(%v) returned status code %d, want %d", tt.url, got, want)
 		}
 	}
+}
+
+func init() {
+	log.SetOutput(ioutil.Discard)
 }

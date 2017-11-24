@@ -208,6 +208,7 @@ func diskCache(path string, limit uint) imageproxy.Cache {
 	}
 
 	c := limitedcache.NewWithDiskv(d, int(limit))
+	c.LoadKeysFromDisk(d.BasePath)
 	go removeFullPictFromCache(c, 512)
 	return c
 }

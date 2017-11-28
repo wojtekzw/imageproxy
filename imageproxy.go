@@ -600,7 +600,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
 	buf.Write(img)
 
-	timer.Send("request.time")
+	timer.Send("request.roundtrip.time")
 
 	return http.ReadResponse(bufio.NewReader(buf), req)
 }

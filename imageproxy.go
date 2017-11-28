@@ -574,7 +574,15 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	opt := ParseOptions(req.URL.Fragment)
 
-	img, err := Transform(b, opt, u.String())
+	var img []byte
+
+	// if VipsEnabled {
+	// 	img, err = Transform_VIPS(b, opt, u.String())
+	// } else {
+	// 	img, err = Transform(b, opt, u.String())
+	// }
+	img, err = Transform(b, opt, u.String())
+
 	if err != nil {
 		Statsd.Increment("image.error.transform")
 		glog.Errorf("image: error transforming: %v, Content-Type: %v, URL: %v", err, resp.Header.Get("Content-Type"), req.URL)
@@ -591,6 +599,8 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	})
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
 	buf.Write(img)
+
+	timer.Send("request.time")
 
 	return http.ReadResponse(bufio.NewReader(buf), req)
 }

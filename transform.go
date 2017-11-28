@@ -34,6 +34,9 @@ import (
 	"github.com/wojtekzw/statsd"
 )
 
+// Enable VIPS C library (only for darwin complie tag now)
+var VipsEnabled = false
+
 // default compression quality of resized jpegs
 const defaultQuality = 95
 

@@ -70,6 +70,7 @@ var version = flag.Bool("version", false, "print version information")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
 var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
+var vips = flag.Bool("vips", false, "enable VIPS C library to resize images instead of standard Go implementations")
 
 func main() {
 	flag.Parse()
@@ -105,6 +106,13 @@ func main() {
 	imageproxy.DebugFile.WriteString("# " + time.Now().Format(imageproxy.DateFormat) + " starting imageproxy\n")
 	imageproxy.DebugFile.Sync()
 
+	if *vips {
+		imageproxy.VipsEnabled = true
+		log.Printf("using VIPS C library to resize images")
+	} else {
+		imageproxy.VipsEnabled = false
+		log.Printf("using standard Go libraries to resize images")
+	}
 	if *responseSize == 0 {
 		*responseSize = imageproxy.MaxRespBodySize
 		log.Printf("Set responseSize to %d", *responseSize)
@@ -155,7 +163,11 @@ func main() {
 	}
 
 	log.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s\n", Version, BuildDate, GitHash, server.Addr)
-	log.Fatal(server.ListenAndServe())
+	err = server.ListenAndServe()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		log.Fatal(err)
+	}
 
 }
 

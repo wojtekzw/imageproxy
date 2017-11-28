@@ -7,3 +7,6 @@ tools
 data
 Gopkg.lock
 cmd/imageproxy/imageproxy
+cmd/imageproxy/imageproxy.img
+cmd/imageproxy/imageproxy.vips
+

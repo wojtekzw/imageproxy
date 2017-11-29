@@ -3,6 +3,7 @@
 package imageproxy
 
 import (
+	"flag"
 	"fmt"
 	"math"
 
@@ -10,6 +11,13 @@ import (
 	"github.com/h2non/bimg"
 	"github.com/wojtekzw/statsd"
 )
+
+// Enable VIPS C library (only for darwin complie tag now)
+var VipsEnabled = false
+
+func init() {
+	VipsEnabled = *flag.Bool("vips", false, "enable VIPS C library to resize images instead of standard Go implementations")
+}
 
 // Transform_VIPS the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The

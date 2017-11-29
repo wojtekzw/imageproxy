@@ -12,17 +12,17 @@ import (
 	"github.com/wojtekzw/statsd"
 )
 
-// Enable VIPS C library (only for darwin complie tag now)
+// VipsEnabled - enable VIPS C library (only for darwin complie tag now)
 var VipsEnabled = false
 
 func init() {
 	VipsEnabled = *flag.Bool("vips", false, "enable VIPS C library to resize images instead of standard Go implementations")
 }
 
-// Transform_VIPS the provided image.  img should contain the raw bytes of an
+// TransformVIPS the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func Transform_VIPS(img []byte, opt Options, url string) ([]byte, error) {
+func TransformVIPS(img []byte, opt Options, url string) ([]byte, error) {
 
 	imgSize := imageSizes{initial: len(img)}
 
@@ -53,8 +53,8 @@ func Transform_VIPS(img []byte, opt Options, url string) ([]byte, error) {
 	// up to maxExifSize looking for EXIF tags.
 	if format == "jpeg" || format == "tiff" {
 		r := metadata.Orientation
-		if exifOpt := exifOrientation_VIPS(r); exifOpt.transform() {
-			m = transformImage_VIPS(m, exifOpt)
+		if exifOpt := exifOrientationVIPS(r); exifOpt.transform() {
+			m = transformImageVIPS(m, exifOpt)
 		}
 	}
 
@@ -67,7 +67,7 @@ func Transform_VIPS(img []byte, opt Options, url string) ([]byte, error) {
 		format = opt.Format
 	}
 
-	m = transformImage_VIPS(m, opt)
+	m = transformImageVIPS(m, opt)
 	// transform and encode image
 
 	var bm []byte
@@ -110,9 +110,9 @@ func Transform_VIPS(img []byte, opt Options, url string) ([]byte, error) {
 	return bm, nil
 }
 
-// resizeParams_VIPS determines if the image needs to be resized, and if so, the
+// resizeParamsVIPS determines if the image needs to be resized, and if so, the
 // dimensions to resize to.
-func resizeParams_VIPS(m *bimg.Image, opt Options) (w, h int, resize bool) {
+func resizeParamsVIPS(m *bimg.Image, opt Options) (w, h int, resize bool) {
 	// convert percentage width and height values to absolute values
 	is, err := m.Size()
 	if err != nil {
@@ -197,8 +197,8 @@ func resizeParams_VIPS(m *bimg.Image, opt Options) (w, h int, resize bool) {
 	return w, h, true
 }
 
-// cropParams calculates crop rectangle parameters to keep it in image bounds
-func cropParams_VIPS(m *bimg.Image, opt Options) (x0, y0, width, height int, crop bool) {
+// cropParamsVIPS calculates crop rectangle parameters to keep it in image bounds
+func cropParamsVIPS(m *bimg.Image, opt Options) (x0, y0, width, height int, crop bool) {
 	if opt.CropX == 0 && opt.CropY == 0 && opt.CropWidth == 0 && opt.CropHeight == 0 {
 		return 0, 0, 0, 0, false
 	}
@@ -238,7 +238,7 @@ func cropParams_VIPS(m *bimg.Image, opt Options) (x0, y0, width, height int, cro
 }
 
 // read EXIF orientation tag from r and adjust opt to orient image correctly.
-func exifOrientation_VIPS(orient int) (opt Options) {
+func exifOrientationVIPS(orient int) (opt Options) {
 	// Exif Orientation Tag values
 	// http://sylvana.net/jpegcrop/exif_orientation.html
 	const (
@@ -275,9 +275,9 @@ func exifOrientation_VIPS(orient int) (opt Options) {
 	return opt
 }
 
-// transformImage_VIPS modifies the image m based on the transformations specified
+// transformImageVIPS modifies the image m based on the transformations specified
 // in opt.
-func transformImage_VIPS(m *bimg.Image, opt Options) *bimg.Image {
+func transformImageVIPS(m *bimg.Image, opt Options) *bimg.Image {
 
 	var bm []byte
 
@@ -286,13 +286,13 @@ func transformImage_VIPS(m *bimg.Image, opt Options) *bimg.Image {
 	defer timerTransform.Send("transform.time.transform_image")
 
 	// crop if needed
-	if x0, y0, w, h, crop := cropParams_VIPS(m, opt); crop {
+	if x0, y0, w, h, crop := cropParamsVIPS(m, opt); crop {
 		bm, _ = m.Extract(y0, x0, w, h)
 		m = bimg.NewImage(bm)
 	}
 
 	// resize if needed
-	if w, h, resize := resizeParams_VIPS(m, opt); resize {
+	if w, h, resize := resizeParamsVIPS(m, opt); resize {
 		options := bimg.Options{
 			Width:        w,
 			Height:       h,

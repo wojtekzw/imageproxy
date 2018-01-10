@@ -209,12 +209,16 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	
 	resp, err := p.Client.Get(req.String())
 	if err != nil {
 		msg := fmt.Sprintf("request: error fetching remote image: %v", err)
 		glog.Error(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
+		code := getStatusCode(err.Error())
+		http.Error(w, msg, code)
+		format := fmt.Sprintf("request.error.fetch.%d",code)
 		Statsd.Increment("request.error.fetch")
+		Statsd.Increment(format)
 		return
 	}
 	defer resp.Body.Close()
@@ -519,9 +523,13 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	u.Fragment = ""
 	resp, err := t.CachingClient.Get(u.String())
 	if err != nil {
-		return nil, fmt.Errorf("Error in client request: %v", err)
+		return nil, fmt.Errorf("error in client request: %v", err)
 	}
 
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("status code: %d", resp.StatusCode)
+	}
+	
 	cts := resp.Header.Get("Content-Type")
 	ct := strings.TrimSpace(strings.SplitN(cts, ";", 2)[0])
 	switch ct {
@@ -609,4 +617,15 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	timer.Send("request.roundtrip.time")
 
 	return http.ReadResponse(bufio.NewReader(buf), req)
+}
+
+
+func getStatusCode(s string) int {
+	e := strings.Split(s,":")
+	c := strings.TrimSpace(e[len(e)-1])
+	code, err := strconv.Atoi(c)
+	if err != nil {
+		return http.StatusInternalServerError
+	}
+	return code
 }

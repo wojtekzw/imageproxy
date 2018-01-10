@@ -1,4 +1,4 @@
-// +build darwin
+// +build !novips
 
 package imageproxy
 

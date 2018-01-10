@@ -232,14 +232,10 @@ func removeFullPictFromCache(c *limitedcache.Cache, limit int) {
 
 		select {
 		case ev := <-ec:
-			log.Printf("op: %s, url: %s ", ev.Operation(), ev.Key())
 			if ev.OperationID() == limitedcache.SetOp && ev.Status() == nil && toDel(ev.Key()) {
-				log.Printf("to delete: %s", ev.Key())
 				cleanCache.Set(ev.Key(), ev)
 			}
-			if ev.OperationID() == limitedcache.DeleteOp {
-				log.Printf("cache deleted: %s, err: %v", ev.Key(), ev.Status())
-			}
+
 		}
 	}
 }
@@ -281,7 +277,7 @@ func parseLog(pathName string) {
 	pathName = filepath.Join(pathName, "imageproxy.log")
 	f, err := os.OpenFile(pathName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	log.SetOutput(f)
 }

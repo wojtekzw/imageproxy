@@ -57,7 +57,7 @@ const (
 	MaxPixels = 40 * 1000 * 1000
 
 	// DebugMemoryLimit - memory usage above this limit will be logged to debug file and logs to statsd as separate event.
-	DebugMemoryLimit = 2 * 1024 * 1024 * 1024
+	DebugMemoryLimit = 3 * 1024 * 1024 * 1024
 
 	// DateFormat - default format used in logging.
 	DateFormat = "2006-01-02 15:04:05"

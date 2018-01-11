@@ -75,8 +75,6 @@ func Transform(img []byte, opt Options, url string) ([]byte, error) {
 	timerTransform = Statsd.NewTiming()
 	defer timerTransform.Send("transform.time.total")
 
-	glog.Infof("pre-transform: name: %s, initial size: %d", url, imgSize.initial)
-
 	// decode image
 	var timerDecode statsd.Timinger
 	timerDecode = Statsd.NewTiming()

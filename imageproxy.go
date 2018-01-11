@@ -140,8 +140,6 @@ func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) 
 // ServeHTTP handles incoming requests.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	glog.Infof("pre-request: %v", r.URL.String())
-
 	Statsd.Increment("request.count.total")
 	if r.URL.Path == "/favicon.ico" {
 		Statsd.Increment("request.count.favicon")
@@ -511,7 +509,6 @@ type TransformingTransport struct {
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.URL.Fragment == "" {
 		// normal requests pass through
-		glog.Infof("request:pass through fetching remote URL: %v", req.URL)
 		return t.Transport.RoundTrip(req)
 	}
 
@@ -624,7 +621,7 @@ func getStatusCode(s string) int {
 	e := strings.Split(s,":")
 	c := strings.TrimSpace(e[len(e)-1])
 	code, err := strconv.Atoi(c)
-	if err != nil {
+	if err != nil || code > 599 {
 		return http.StatusInternalServerError
 	}
 	return code

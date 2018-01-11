@@ -14,7 +14,7 @@
   tasks:
   - name: Test imageproxy binary
     run_once: true
-    local_action:  shell cd {{ imageproxy_dir }}; go test -v
+    local_action:  shell cd {{ imageproxy_dir }}; go test -v -tags novips
     tags:
       - build
       - new_binary
@@ -23,14 +23,14 @@
 
   - name: Build imageproxy Linux binary
     run_once: true
-    local_action: shell cd {{ imageproxy_cmd_dir }}; GOOS=linux GOARCH=amd64  go build -ldflags "{{ golang_ldflags }}" -o builds/imageproxy-linux
+    local_action: shell cd {{ imageproxy_cmd_dir }}; GOOS=linux GOARCH=amd64  go build -tags novips -ldflags "{{ golang_ldflags }}" -o builds/imageproxy-linux
     tags:
       - build
       - new_binary
 
   - name: Build imageproxy MaxOS binary
     run_once: true
-    local_action: shell cd {{ imageproxy_cmd_dir }}; GOOS=darwin GOARCH=amd64  go build -ldflags "{{ golang_ldflags }}" -o builds/imageproxy-macos
+    local_action: shell cd {{ imageproxy_cmd_dir }}; GOOS=darwin GOARCH=amd64  go build -tags novips -ldflags "{{ golang_ldflags }}" -o builds/imageproxy-macos
     tags:
       - build
       - macos

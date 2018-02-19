@@ -344,10 +344,7 @@ func validHostWithCNAME(hosts []string, u *url.URL, cnFunc func(string) (string,
 }
 
 func validHostCached(hosts []string, u *url.URL, cnFunc func(string) (string, error)) bool {
-	log.Printf("check if host is valid: %s", u.Host)
-
 	if _, err := allowedHosts.Get(u.Host); err == nil {
-		log.Printf("host hit in allowed hosts cache: %s", u.Host)
 		return true
 	}
 	if _, err := notAllowedHosts.Get(u.Host); err == nil {
@@ -358,7 +355,6 @@ func validHostCached(hosts []string, u *url.URL, cnFunc func(string) (string, er
 	if validHostWithCNAME(hosts, u, cnFunc) {
 		if _, err := allowedHosts.Get(u.Host); err != nil {
 			allowedHosts.Set(u.Host, struct{}{})
-			log.Printf("host added to allowed hosts cache: %s", u.Host)
 		}
 		return true
 	}

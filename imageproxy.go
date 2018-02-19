@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -207,14 +208,13 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	
 	resp, err := p.Client.Get(req.String())
 	if err != nil {
 		msg := fmt.Sprintf("request: error fetching remote image: %v", err)
 		glog.Error(msg)
 		code := getStatusCode(err.Error())
 		http.Error(w, msg, code)
-		format := fmt.Sprintf("request.error.fetch.%d",code)
+		format := fmt.Sprintf("request.error.fetch.%d", code)
 		Statsd.Increment("request.error.fetch")
 		Statsd.Increment(format)
 		return
@@ -526,7 +526,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("status code: %d", resp.StatusCode)
 	}
-	
+
 	cts := resp.Header.Get("Content-Type")
 	ct := strings.TrimSpace(strings.SplitN(cts, ";", 2)[0])
 	switch ct {
@@ -616,13 +616,25 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	return http.ReadResponse(bufio.NewReader(buf), req)
 }
 
+var re = regexp.MustCompile(`status code:\s+(\d+)$`)
 
 func getStatusCode(s string) int {
-	e := strings.Split(s,":")
-	c := strings.TrimSpace(e[len(e)-1])
-	code, err := strconv.Atoi(c)
-	if err != nil || code > 599 {
-		return http.StatusInternalServerError
+	var (
+		code int
+		err  error
+	)
+	// e := strings.Split(s,":")
+	// c := strings.TrimSpace(e[len(e)-1])
+	ss := re.FindStringSubmatch(s)
+	if len(ss) == 2 {
+		code, err = strconv.Atoi(ss[1])
+		if err != nil {
+			code = http.StatusInternalServerError
+		}
+	} 
+	
+	if code == 0 || code > 599 {
+		code = http.StatusInternalServerError
 	}
 	return code
 }

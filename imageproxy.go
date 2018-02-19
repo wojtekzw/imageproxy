@@ -302,66 +302,6 @@ func (p *Proxy) allowed(r *Request, cnFunc func(string) (string, error)) error {
 	return fmt.Errorf("request does not contain an allowed host or valid signature: %v", r)
 }
 
-// // validHost returns whether the host in u matches one of hosts.
-// func validHost(hosts []string, u *url.URL) bool {
-// 	if _, err := allowedHosts.Get(u.Host); err == nil {
-// 		log.Printf("cache hit allowed: %s", u.Host)
-// 		return true
-// 	}
-// 	if _, err := notAllowedHosts.Get(u.Host); err == nil {
-// 		log.Printf("cache hit disallowed: %s", u.Host)
-// 		return false
-// 	}
-
-// 	for _, host := range hosts {
-
-// 		if u.Host == host {
-// 			allowedHosts.Set(u.Host, struct{}{})
-// 			return true
-// 		}
-// 		if strings.HasPrefix(host, "*.") && strings.HasSuffix(u.Host, host[2:]) {
-// 			allowedHosts.Set(u.Host, struct{}{})
-// 			return true
-// 		}
-// 		cname, err := net.LookupCNAME(u.Host)
-// 		if len(cname) > 1 {
-// 			cname = cname[:len(cname)-1]
-// 		}
-// 		if err == nil {
-// 			for _, chost := range hosts {
-// 				log.Printf("pattern: %s, cname: %s, host: %s", chost, cname, u.Host)
-// 				if cname == chost {
-// 					allowedHosts.Set(u.Host, struct{}{})
-// 					log.Printf("OK eq %s", u.Host)
-// 					return true
-// 				}
-// 				if strings.HasPrefix(chost, "*.") && strings.HasSuffix(cname, chost[2:]) {
-// 					allowedHosts.Set(u.Host, struct{}{})
-// 					log.Printf("OK suffix: %s", u.Host)
-// 					return true
-// 				}
-// 			}
-// 		}
-// 	}
-// 	log.Printf("NOT OK: %s", u.Host)
-// 	notAllowedHosts.Set(u.Host, struct{}{})
-// 	return false
-// }
-
-// // validHost returns whether the host in u matches one of hosts.
-// func validHost(hosts []string, u *url.URL) bool {
-// 	for _, host := range hosts {
-// 		if u.Host == host {
-// 			return true
-// 		}
-// 		if strings.HasPrefix(host, "*.") && strings.HasSuffix(u.Host, host[2:]) {
-// 			return true
-// 		}
-// 	}
-
-// 	return false
-// }
-
 func cname(h string) (string, error) {
 	c, err := net.LookupCNAME(h)
 	if len(c) > 0 {
@@ -631,8 +571,8 @@ func getStatusCode(s string) int {
 		if err != nil {
 			code = http.StatusInternalServerError
 		}
-	} 
-	
+	}
+
 	if code == 0 || code > 599 {
 		code = http.StatusInternalServerError
 	}

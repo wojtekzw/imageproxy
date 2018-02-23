@@ -1,0 +1,28 @@
+
+---
+  
+- name: restart logserver 
+  hosts: ls
+  #  deploy serialy 1 by 1
+  serial: 1
+
+  vars:
+    base_dir: "/home/wzwiefka" 
+  
+  tasks:
+    - name: Stop imageproxy
+      supervisorctl:
+        name: imageproxy
+        state: stopped
+        config: "{{ base_dir }}/supervisord.conf"
+      tags:
+        - restart
+    
+    - name: Start imageproxy
+      supervisorctl:
+        name: imageproxy
+        state: started
+        config: "{{ base_dir }}/supervisord.conf"
+      tags:
+        - restart
+

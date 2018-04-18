@@ -77,7 +77,7 @@ func main() {
 
 	if *version {
 		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate, GitHash)
-		return
+		os.Exit(0)
 	}
 
 	parseLog(logDir)
@@ -105,12 +105,12 @@ func main() {
 	}
 	if *responseSize == 0 {
 		*responseSize = imageproxy.MaxRespBodySize
-		log.Printf("Set responseSize to %d", *responseSize)
+		log.Printf("set responseSize to %d", *responseSize)
 	}
 
 	if *maxScaleUp <= 0 {
 		// do nothing - leave default imageproxy.MaxScaleUp. Inform user
-		log.Printf("Set maxScaleUp to %.1f", imageproxy.MaxScaleUp)
+		log.Printf("set maxScaleUp to %.1f", imageproxy.MaxScaleUp)
 	} else {
 		imageproxy.MaxScaleUp = *maxScaleUp
 	}
@@ -150,7 +150,7 @@ func main() {
 		Handler: p,
 	}
 
-	log.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s\n", Version, BuildDate, GitHash, server.Addr)
+	log.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s", Version, BuildDate, GitHash, server.Addr)
 	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -244,7 +244,7 @@ func parseStatsd() (statsd.Statser, error) {
 	if len(*statsdAddr) > 0 {
 		statserClient, err = statsd.New(statsd.Address(*statsdAddr), statsd.Prefix(*statsdPrefix), statsd.MaxPacketSize(512))
 		if err != nil {
-			log.Printf("Error creating statsd client - setting empty client")
+			log.Printf("error creating statsd client - setting empty client")
 			statserClient = &statsd.NoopClient{}
 			return statserClient, nil
 		}

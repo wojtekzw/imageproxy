@@ -100,14 +100,6 @@ func main() {
 		os.Setenv("HTTP_PROXY", proxyURL.String())
 	}
 
-	imageproxy.DebugFile, err = parseDebug(logDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer imageproxy.DebugFile.Close()
-	imageproxy.DebugFile.WriteString("# " + time.Now().Format(imageproxy.DateFormat) + " starting imageproxy\n")
-	imageproxy.DebugFile.Sync()
-
 	if imageproxy.VipsEnabled {
 		log.Printf("using VIPS C library to resize images")
 	} else {
@@ -283,10 +275,4 @@ func parseLog(pathName string) {
 		log.Fatal(err)
 	}
 	log.SetOutput(f)
-}
-
-func parseDebug(pathName string) (*os.File, error) {
-	pathName = filepath.Join(pathName, "imageproxy-debug.log")
-	return os.OpenFile(pathName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
-
 }

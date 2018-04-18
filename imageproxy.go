@@ -29,7 +29,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,9 +70,7 @@ var (
 	concurrencyGuard = make(chan struct{}, maxConcurrency)
 	// Statsd - global statsd client to send metrics.
 	Statsd statsd.Statser = &statsd.NoopClient{}
-	// DebugFile - additionl debug file - to be removed.
 	// TODO
-	DebugFile      *os.File
 	memoryLastSeen uint64
 
 	allowedHosts    = gcache.New(1024).LRU().Build()
@@ -227,8 +224,6 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	if memory.RSS > memoryLastSeen && memory.RSS >= DebugMemoryLimit {
 		Statsd.Increment("memory.above_limit")
 		memoryLastSeen = memory.RSS
-		DebugFile.WriteString("# " + time.Now().Format(DateFormat) + " memory RSS: " + fmt.Sprintf("%d", memory.RSS) + "\n")
-		DebugFile.Sync()
 	}
 	if memory.RSS < memoryLastSeen {
 		memoryLastSeen = memory.RSS
@@ -256,9 +251,6 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 
 	Statsd.Increment("request.code." + strconv.Itoa(resp.StatusCode))
-
-	DebugFile.WriteString(time.Now().Format(DateFormat) + " " + r.Host + r.RequestURI + " " + resp.Header.Get("Content-Length") + "\n")
-	DebugFile.Sync()
 
 }
 

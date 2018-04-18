@@ -24,9 +24,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/bluele/gcache"
 	"github.com/wojtekzw/limitedcache"
@@ -147,8 +145,6 @@ func main() {
 	p.Timeout = *timeout
 	p.ScaleUp = *scaleUp
 
-	go freeMemory()
-
 	server := &http.Server{
 		Addr:    *addr,
 		Handler: p,
@@ -260,13 +256,6 @@ func parseStatsd() (statsd.Statser, error) {
 	return statserClient, nil
 }
 
-func freeMemory() {
-	for {
-		debug.FreeOSMemory()
-		time.Sleep(60 * time.Second)
-	}
-
-}
 func parseLog(pathName string) {
 
 	pathName = filepath.Join(pathName, "imageproxy.log")

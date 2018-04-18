@@ -72,14 +72,17 @@ var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd d
 var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
 
 func main() {
+
 	flag.Parse()
+	// log_dir flag added by golang/glog
+	var logDir = flag.Lookup("log_dir").Value.(flag.Getter).Get().(string)
 
 	if *version {
 		fmt.Printf("Version: %v\nBuild: %v\nGitHash: %v\n", Version, BuildDate, GitHash)
 		return
 	}
 
-	parseLog("/tmp/imageproxy/logs")
+	parseLog(logDir)
 
 	c, err := parseCache()
 	if err != nil {
@@ -97,7 +100,7 @@ func main() {
 		os.Setenv("HTTP_PROXY", proxyURL.String())
 	}
 
-	imageproxy.DebugFile, err = parseDebug()
+	imageproxy.DebugFile, err = parseDebug(logDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -282,11 +285,7 @@ func parseLog(pathName string) {
 	log.SetOutput(f)
 }
 
-func parseDebug() (*os.File, error) {
-	var pathName string
-
-	pathName = "/tmp"
-
+func parseDebug(pathName string) (*os.File, error) {
 	pathName = filepath.Join(pathName, "imageproxy-debug.log")
 	return os.OpenFile(pathName, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 

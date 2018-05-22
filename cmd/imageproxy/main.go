@@ -65,6 +65,7 @@ var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their or
 var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleUp to maxScaleUp times (eg. 4.0 means 100x100 can be resized do 200x200 or 300x133 etc.)")
 var timeout = flag.Duration("timeout", 0, "time limit for requests served by this proxy")
 var version = flag.Bool("version", false, "print version information")
+var printConfig = flag.Bool("printConfig", false, "print config")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
 var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
@@ -148,6 +149,30 @@ func main() {
 	server := &http.Server{
 		Addr:    *addr,
 		Handler: p,
+	}
+
+	if *printConfig {
+		fmt.Fprintf(os.Stderr, "version: %s\n", Version)
+		fmt.Fprintf(os.Stderr, "build date: %s\n", BuildDate)
+		fmt.Fprintf(os.Stderr, "git hash: %s\n", GitHash)
+		fmt.Fprintf(os.Stderr, "listen addr: %s\n", *addr)
+		fmt.Fprintf(os.Stderr, "http proxy (for get image): %s\n", proxyURL.String())
+		fmt.Fprintf(os.Stderr, "log dir: %s\n", logDir)
+		fmt.Fprintf(os.Stderr, "cache dir: %s\n", *cache)
+		fmt.Fprintf(os.Stderr, "cache limit (max number of files): %d\n", *cacheLimit)
+		fmt.Fprintf(os.Stderr, "vips lib enabled: %t\n", imageproxy.VipsEnabled)
+		fmt.Fprintf(os.Stderr, "max response size (for get image): %d\n", *responseSize)
+		fmt.Fprintf(os.Stderr, "max pixel size of image to be transformed (compiled in): %d\n", imageproxy.MaxPixels)
+		fmt.Fprintf(os.Stderr, "max transform concurrency (compiled in): %d\n", imageproxy.MaxConcurrency)
+		fmt.Fprintf(os.Stderr, "whitelist domains: %s\n", strings.Join(p.Whitelist, ", "))
+		fmt.Fprintf(os.Stderr, "whitelist referrers: %s\n", strings.Join(p.Referrers, ", "))
+		fmt.Fprintf(os.Stderr, "signature key: %s\n", p.SignatureKey)
+		fmt.Fprintf(os.Stderr, "base url: %s\n", *baseURL)
+		fmt.Fprintf(os.Stderr, "scale up enabled: %t\n", p.ScaleUp)
+		fmt.Fprintf(os.Stderr, "max scale up: %.1f\n", imageproxy.MaxScaleUp)
+		fmt.Fprintf(os.Stderr, "timeout: %s\n", p.Timeout.String())
+		fmt.Fprintf(os.Stderr, "statsd addr: %s\n", *statsdAddr)
+		fmt.Fprintf(os.Stderr, "statsd prefix: %s\n", *statsdPrefix)
 	}
 
 	log.Printf("imageproxy (version %v [build: %s, git hash: %s]) listening on %s", Version, BuildDate, GitHash, server.Addr)

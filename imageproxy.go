@@ -62,12 +62,12 @@ const (
 	// DateFormat - default format used in logging.
 	DateFormat = "2006-01-02 15:04:05"
 
-	// maxConcurrency - max number of parallel image requests.
-	maxConcurrency = 15
+	// MaxConcurrency - max number of parallel image requests.
+	MaxConcurrency = 15
 )
 
 var (
-	concurrencyGuard = make(chan struct{}, maxConcurrency)
+	concurrencyGuard = make(chan struct{}, MaxConcurrency)
 	// Statsd - global statsd client to send metrics.
 	Statsd statsd.Statser = &statsd.NoopClient{}
 	// TODO
@@ -145,7 +145,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/health" {
-		if l := len(concurrencyGuard); l >= maxConcurrency-2 {
+		if l := len(concurrencyGuard); l >= MaxConcurrency-2 {
 			Statsd.Increment("request.count.health.too_many_req")
 			w.WriteHeader(503)
 			fmt.Fprintf(w, "error: too many concurrent image transform requests: %d", l)

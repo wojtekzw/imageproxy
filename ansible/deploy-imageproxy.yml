@@ -9,7 +9,7 @@
     local_dir: "/Users/wzwiefka"
     imageproxy_dir: "{{ local_dir }}/Documents/goext/src/github.com/wojtekzw/imageproxy"
     imageproxy_cmd_dir: "{{ imageproxy_dir}}//cmd/imageproxy"
-    golang_ldflags: "-X main.BuildDate=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.Version=0.5"
+    golang_ldflags: "-X main.BuildDate=`date -u '+%Y-%m-%d_%I:%M:%S%p'` -X main.GitHash=`git rev-parse HEAD` -X main.Version=0.9"
 
   tasks:
   - name: Test imageproxy binary

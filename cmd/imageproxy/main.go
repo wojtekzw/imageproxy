@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/bluele/gcache"
 	"github.com/wojtekzw/limitedcache"
@@ -63,7 +64,7 @@ var responseSize = flag.Uint64("responseSize", imageproxy.MaxRespBodySize, "Max 
 var signatureKey = flag.String("signatureKey", "", "HMAC key used in calculating request signatures")
 var scaleUp = flag.Bool("scaleUp", false, "allow images to scale beyond their original dimensions")
 var maxScaleUp = flag.Float64("maxScaleUp", imageproxy.MaxScaleUp, "limit scaleUp to maxScaleUp times (eg. 4.0 means 100x100 can be resized do 200x200 or 300x133 etc.)")
-var timeout = flag.Duration("timeout", 0, "time limit for requests served by this proxy")
+var timeout = flag.Duration("timeout", 30*time.Second, "time limit for requests served by this proxy")
 var version = flag.Bool("version", false, "print version information")
 var printConfig = flag.Bool("printConfig", false, "print config")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")

@@ -9,4 +9,9 @@ Gopkg.lock
 cmd/imageproxy/imageproxy
 cmd/imageproxy/imageproxy.img
 cmd/imageproxy/imageproxy.vips
+*.log
+conf/
+ansible/
+.vscode/
+
 

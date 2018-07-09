@@ -16,10 +16,12 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -70,6 +72,7 @@ var printConfig = flag.Bool("printConfig", false, "print config")
 var statsdAddr = flag.String("statsdAddr", ":8125", "UDP address of Statsd compatible server")
 var statsdPrefix = flag.String("statsdPrefix", "imageproxy", "prefix of Statsd data names")
 var httpProxy = flag.String("httpProxy", "", "HTTP_PROXY URL to be used")
+var sslSkipVerify = flag.Bool("sslSkipVerify", false, "skip verify of SSL ceritficate (enable self-signed or expired certificates)")
 
 func main() {
 
@@ -117,7 +120,23 @@ func main() {
 		imageproxy.MaxScaleUp = *maxScaleUp
 	}
 
-	p := imageproxy.NewProxy(nil, c, *responseSize)
+	var transport http.RoundTripper
+	transport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSClientConfig:       &tls.Config{InsecureSkipVerify: *sslSkipVerify},
+	}
+
+	p := imageproxy.NewProxy(transport, c, *responseSize)
+
 	if *whitelist != "" {
 		p.Whitelist = strings.Split(*whitelist, ",")
 	}

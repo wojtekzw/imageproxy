@@ -318,6 +318,10 @@ imageproxy -httpProxy "http://127.0.0.1:8888"
 
 - imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
 
+### Development ###
+
+- sslSkipVerify - command line parameter to allow self-signed or expired SSL certificates on origin servers. SHOULD NOT be used in production.
+
 
 ## Deploying ##
 

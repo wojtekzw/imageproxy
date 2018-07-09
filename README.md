@@ -298,7 +298,7 @@ All of these changes are to help stability of imageproxy:
 -  maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled. 
    Helps to protect server memory from being exhausted
 - responseSize - limit maximum size in bytes of image to be fetched and scaled. 
-  Do not try to scale too big images. Default is 10MB
+  Do not try to scale too big images. Default is 20MB
 - maxPixels - limit maximum size in pixels for images to be transformed. If images if larger do not try to scale it.
   Images must be 'unpacked' to memory so it helps to protect stability. (It is no ideal - smaller images can still 'unpack' to very large).
   Hardcoded default is 40MP (40 megapixels)     

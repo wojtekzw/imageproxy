@@ -50,7 +50,7 @@ import (
 const (
 	// MaxRespBodySize - maximum size of remote image to be proxied. If image is larger Get(url) will return error.
 	// It is safety feature to protect memory.
-	MaxRespBodySize = 10 * 1024 * 1024
+	MaxRespBodySize = 20 * 1024 * 1024
 
 	// MaxPixels - maximum size of image in pixels.  If image is larger Get(url) will return error.
 	// It is safety feature to protect memory.

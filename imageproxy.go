@@ -471,15 +471,17 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	contentLength, _ := strconv.Atoi(resp.Header.Get("Content-Length"))
+
+	maxSize := t.MaxResponseSize
 	// no data reading - check first Content-Length
-	if uint64(contentLength) > t.MaxResponseSize {
+	if uint64(contentLength) > maxSize {
 		Statsd.Increment("image.error.too_large.bytes")
-		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d", t.MaxResponseSize,
+		return nil, fmt.Errorf("size in bytes too large: max size: %d, content-length: %d", maxSize,
 			contentLength)
 	}
 
 	//read data with limiter if there is no Content-Length header or it is fake
-	resp.Body = NewLimitedReadCloser(resp.Body, int64(t.MaxResponseSize))
+	resp.Body = NewLimitedReadCloser(resp.Body, int64(maxSize))
 
 	defer resp.Body.Close()
 

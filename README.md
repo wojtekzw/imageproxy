@@ -3,15 +3,15 @@
 [original]: https://github.com/willnorris/imageproxy
 [https://github.com/willnorris/imageproxy]: https://github.com/willnorris/imageproxy
 
-imageproxy is a caching image proxy server written in Go.  It is the fork of 
+imageproxy is a caching image proxy server written in Go.  It is the fork of
 [https://github.com/willnorris/imageproxy]. This README comes in over 90% from [original] with some changes to accommodate
 for feature changes in this fork. It features:
 
- - basic image adjustments like resizing, cropping, and rotation
- - access control using host whitelists or request signing (HMAC-SHA256)
- - support for jpeg, png, webp (decode only), tiff, and gif image formats (including animated gifs)
- - on-disk caching, respecting the cache headers of the original images
- - easy deployment, since it's pure go
+- basic image adjustments like resizing, cropping, and rotation
+- access control using host whitelists or request signing (HMAC-SHA256)
+- support for jpeg, png, webp (decode only), tiff, and gif image formats (including animated gifs)
+- on-disk caching, respecting the cache headers of the original images
+- easy deployment, since it's pure go
 
 Originaly it is used by its primarily author to dynamically resize images hosted on my his
 site (read more in [this post][]).  But you can also enable request signing and
@@ -21,12 +21,11 @@ additional image adjustment options.
 [this post]: https://willnorris.com/2014/01/a-self-hosted-alternative-to-jetpacks-photon-service
 [atmos/camo]: https://github.com/atmos/camo
 
-
-## URL Structure ##
+## URL Structure
 
 imageproxy URLs are of the form `http://localhost/{options}/{remote_url}`.
 
-### Options ###
+### Options
 
 Options are available for cropping, resizing, rotation, flipping, and digital
 signatures among a few others.  Options for are specified as a comma delimited
@@ -35,7 +34,7 @@ overwrite previous values.
 
 The format is a superset of [resize.ly's options](https://resize.ly/#demo).
 
-#### Size ####
+#### Size
 
 The size option takes the general form `{width}x{height}`, where width and
 height are numbers.  Integer values greater than 1 are interpreted as exact
@@ -45,7 +44,7 @@ automatically set to preserve the aspect ratio based on the other dimension.
 If a single number is provided (with no "x" separator), it will be used for
 both height and width.
 
-#### Crop Mode ####
+#### Crop Mode
 
 Depending on the options specified, an image may be cropped to fit the
 requested size.  In all cases, the original aspect ratio of the image will be
@@ -53,10 +52,9 @@ preserved; imageproxy will never stretch the original image.
 
 When no explicit crop mode is specified, the following rules are followed:
 
- - If both width and height values are specified, the image will be scaled to
+- If both width and height values are specified, the image will be scaled to
    fill the space, cropping if necessary to fit the exact dimension.
-
- - If only one of the width or height values is specified, the image will be
+- If only one of the width or height values is specified, the image will be
    resized to fit the specified dimension, scaling the other dimension as
    needed to maintain the aspect ratio.
 
@@ -66,29 +64,29 @@ always, the original aspect ratio will be preserved. Specifying the `fit`
 option with only one of either width or height does the same thing as if `fit`
 had not been specified.
 
-#### Absolute crop mode ####
+#### Absolute crop mode
 
 Starting point can be added (top,left) `cx{start_x},cy{start_y` eg. cx10,cy20 - that means start crop from (10,20)
 in original image. And size of the crop can be set `cw{width},ch{height}` eg. cw100,ch200 - that means width=100, height=200.
 After absolute crop all other transformations are applied to the new cropped image.
 
-#### Rotate ####
+#### Rotate
 
 The `r{degrees}` option will rotate the image the specified number of degrees,
 counter-clockwise.  Valid degrees values are `90`, `180`, and `270`.  Images
 are rotated **after** being resized.
 
-#### Flip ####
+#### Flip
 
 The `fv` option will flip the image vertically.  The `fh` option will flip the
 image horizontally.  Images are flipped **after** being resized and rotated.
 
-#### Quality ####
+#### Quality
 
 The `q{percentage}` option can be used to specify the output quality (JPEG
 only).  If not specified, the default value of `95` is used.
 
-#### Signature ####
+#### Signature
 
 The `s{signature}` option specifies an optional base64 encoded HMAC used to
 sign the remote URL in the request.  The HMAC key used to verify signatures is
@@ -97,11 +95,12 @@ provided to the imageproxy server on startup.
 See [URL Signing](https://github.com/willnorris/imageproxy/wiki/URL-signing)
 for examples of generating signatures.
 
-#### All options #### 
+#### All options
+
 See the full list of available options at
 <https://godoc.org/willnorris.com/go/imageproxy#ParseOptions>.
 
-### Remote URL ###
+### Remote URL
 
 The URL of the original image to load is specified as the remainder of the
 path, without any encoding.  For example,
@@ -112,12 +111,14 @@ strings.
 
 [optimize caching]: http://www.stevesouders.com/blog/2008/08/23/revving-filenames-dont-use-querystring/
 
-### Examples ###
+### Examples
 
 The following live examples demonstrate setting different options on [this
 source image][small-things], which measures 1024 by 678 pixels.
 
 [small-things]: https://willnorris.com/2013/12/small-things.jpg
+
+<!-- markdownlint-disable MD033 -->
 
 Options | Meaning                                  | Image
 --------|------------------------------------------|------
@@ -139,8 +140,7 @@ image][material-animation] resized to 200px square and rotated 270 degrees:
 
 <a href="https://willnorris.com/api/imageproxy/200,r270/https://willnorris.com/2015/05/material-animations.gif"><img src="https://willnorris.com/api/imageproxy/200,r270/https://willnorris.com/2015/05/material-animations.gif" alt="200,r270"></a>
 
-
-## Getting Started ##
+## Getting Started
 
 Install the package using:
 
@@ -156,31 +156,31 @@ whitelist (meaning any remote URL can be proxied).  Test this by navigating to
 <http://localhost:8080/500/https://octodex.github.com/images/codercat.jpg> and
 you should see a 500px square coder octocat.
 
-### Cache ###
+### Cache
 
 By default, the imageproxy command does not cache responses, but caching can be
 enabled using the `-cache` flag.  It supports the following values:
 
- - `memory` - uses an in-memory cache.  (This can exhaust your system's
-   available memory and is not recommended for production systems)
- - directory on local disk (e.g. `/tmp/imageproxy`) - will cache images
-   on disk
- - s3 URL (e.g. `s3://region/bucket-name/optional-path-prefix`) - will cache
-   images on Amazon S3.  This requires either an IAM role and instance profile
-   with access to your your bucket or `AWS_ACCESS_KEY_ID` and `AWS_SECRET_KEY`
-   environmental variables be set. (Additional methods of loading credentials
-   are documented in the [aws-sdk-go session
-   package](https://docs.aws.amazon.com/sdk-for-go/api/aws/session/)).
- - gcs URL (e.g. `gcs://bucket-name/optional-path-prefix`) - will cache images
-   on Google Cloud Storage.  This requires `GCP_PRIVATE_KEY` environmental
-   variable be set.
- - azure URL (e.g. `azure://container-name/`) - will cache images on
-   Azure Storage.  This requires `AZURESTORAGE_ACCOUNT_NAME` and
- - redis URL (e.g. `redis://hostname/`) - will cache images on
-   the specified redis host. The full URL syntax is defined by the [redis URI
-   registration](https://www.iana.org/assignments/uri-schemes/prov/redis).
-   Rather than specify password in the URI, use the `REDIS_PASSWORD`
-   environment variable.
+- `memory` - uses an in-memory cache.  (This can exhaust your system's
+  available memory and is not recommended for production systems)
+- directory on local disk (e.g. `/tmp/imageproxy`) - will cache images
+  on disk
+- s3 URL (e.g. `s3://region/bucket-name/optional-path-prefix`) - will cache
+  images on Amazon S3.  This requires either an IAM role and instance profile
+  with access to your your bucket or `AWS_ACCESS_KEY_ID` and `AWS_SECRET_KEY`
+  environmental variables be set. (Additional methods of loading credentials
+  are documented in the [aws-sdk-go session
+  package](https://docs.aws.amazon.com/sdk-for-go/api/aws/session/)).
+- gcs URL (e.g. `gcs://bucket-name/optional-path-prefix`) - will cache images
+  on Google Cloud Storage.  This requires `GCP_PRIVATE_KEY` environmental
+  variable be set.
+- azure URL (e.g. `azure://container-name/`) - will cache images on
+  Azure Storage.  This requires `AZURESTORAGE_ACCOUNT_NAME` and
+- redis URL (e.g. `redis://hostname/`) - will cache images on
+  the specified redis host. The full URL syntax is defined by the [redis URI
+  registration](https://www.iana.org/assignments/uri-schemes/prov/redis).
+  Rather than specify password in the URI, use the `REDIS_PASSWORD`
+  environment variable.
 
 For example, to cache files on disk in the `/tmp/imageproxy` directory:
 
@@ -193,7 +193,7 @@ version.
 
 [codercat URL]: http://localhost:8080/500/https://octodex.github.com/images/codercat.jpg
 
-### Referrer Whitelist ###
+### Referrer Whitelist
 
 You can limit images to only be accessible for certain hosts in the HTTP
 referrer header, which can help prevent others from hotlinking to images. It can
@@ -201,12 +201,11 @@ be enabled by running:
 
     imageproxy  -referrers example.com
 
-
 Reload the [codercat URL][], and you should now get an error message.  You can
 specify multiple hosts as a comma separated list, or prefix a host value with
 `*.` to allow all sub-domains as well.
 
-### Host whitelist ###
+### Host whitelist
 
 You can limit the remote hosts that the proxy will fetch images from using the
 `whitelist` flag.  This is useful, for example, for locking the proxy down to
@@ -220,7 +219,7 @@ Reload the [codercat URL][], and you should now get an error message.  You can
 specify multiple hosts as a comma separated list, or prefix a host value with
 `*.` to allow all sub-domains as well.
 
-### Signed Requests ###
+### Signed Requests
 
 Instead of a host whitelist, you can require that requests be signed.  This is
 useful in preventing abuse when you don't have just a static list of hosts you
@@ -249,7 +248,7 @@ If both a whiltelist and signatureKey are specified, requests can match either.
 In other words, requests that match one of the whitelisted hosts don't
 necessarily need to be signed, though they can be.
 
-### Default Base URL ###
+### Default Base URL
 
 Typically, remote images to be proxied are specified as absolute URLs.
 However, if you commonly proxy images from a single source, you can provide a
@@ -264,14 +263,14 @@ effective method to mask the true source of the images being proxied; it is
 trivial to discover the base URL being used.  Even when a base URL is
 specified, you can always provide the absolute URL of the image to be proxied.
 
-### Scaling beyond original size ###
+### Scaling beyond original size
 
 By default, the imageproxy won't scale images beyond their original size.
 However, you can use the `scaleUp` command-line flag to allow this to happen:
 
     imageproxy -scaleUp true
 
-### WebP and TIFF support ###
+### WebP and TIFF support
 
 Imageproxy can proxy remote webp images, but they will be served in either jpeg
 or png format (this is because the golang webp library only supports webp
@@ -285,31 +284,32 @@ default if any transformation is requested. To force encoding as tiff, pass the
 "tiff" option. Like webp, tiff images will be served as-is without any format
 conversion if no transformation is requested.
 
-
 Run `imageproxy -help` for a complete list of flags the command accepts.  If
 you want to use a different caching implementation, it's probably easiest to
 just make a copy of `cmd/imageproxy/main.go` and customize it to fit your
 needs... it's a very simple command.
 
-## Changes to [original] imageproxy ##
+## Changes to [original] imageproxy
 
-### Stability & monitoring ###
-All of these changes are to help stability of imageproxy: 
--  maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled. 
+### Stability & monitoring
+
+All of these changes are to help stability of imageproxy:
+
+- maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled.
    Helps to protect server memory from being exhausted
-- responseSize - limit maximum size in bytes of image to be fetched and scaled. 
+- responseSize - limit maximum size in bytes of image to be fetched and scaled.
   Do not try to scale too big images. Default is 20MB
 - maxPixels - limit maximum size in pixels for images to be transformed. If images if larger do not try to scale it.
   Images must be 'unpacked' to memory so it helps to protect stability. (It is no ideal - smaller images can still 'unpack' to very large).
-  Hardcoded default is 40MP (40 megapixels)     
+  Hardcoded default is 40MP (40 megapixels)
 - statsD - send internal server data to statsD daemon
-- diskcache - limit number of created files on disk (default 20000) and reload cache after restart (hardcoded in diskcache component) 
+- diskcache - limit number of created files on disk (default 20000) and reload cache after restart (hardcoded in diskcache component)
 - concurrency - limit concurrency of images transformation (default 15 concurrent transformations) - to preserve CPU
- 
-### Security ### 
+
+### Security
 
 - imageproxy can use HTTP_PROXY to get external images. Proxy can be set either by setting HTTP_PROXY environment variable or
-    by setting command line option `-httpProxy`. Command line takes precedence over environment variable. 
+    by setting command line option `-httpProxy`. Command line takes precedence over environment variable.
     Example:
 
 ```shell
@@ -318,36 +318,34 @@ imageproxy -httpProxy "http://127.0.0.1:8888"
 
 - imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
 
-### Development ###
+### Development
 
 - sslSkipVerify - command line parameter to allow self-signed or expired SSL certificates on origin servers. SHOULD NOT be used in production.
 
-
-## Deploying ##
+## Deploying
 
 In most cases, you can follow the normal procedure for building a deploying any
 go application.  For example, I build it directly on my production debian server
 using:
 
- - `go build gtihub.com/wojtekzw/imageproxy/cmd/imageproxy`
- - copy resulting binary to `/usr/local/bin`
- - copy [`etc/imageproxy.service`](etc/imageproxy.service) to
-   `/lib/systemd/system` and enable using `systemctl`.
+- `go build gtihub.com/wojtekzw/imageproxy/cmd/imageproxy`
+- copy resulting binary to `/usr/local/bin`
+- copy [`etc/imageproxy.service`](etc/imageproxy.service) to
+ `/lib/systemd/system` and enable using `systemctl`.
 
 Instructions have been contributed below for running on other platforms, but I
 don't have much experience with them personally.
 
-### Heroku ###
+### Heroku
 
 It's easy to vendorize the dependencies with `Godep` and deploy to Heroku. Take
 a look at [this GitHub repo](https://github.com/oreillymedia/prototype-imageproxy)
 
-
-### nginx ###
+### nginx
 
 You can use follow config to prevent URL overwritting:
 
-```
+```nginx
   location ~ ^/api/imageproxy/ {
     # pattern match to capture the original URL to prevent URL
     # canonicalization, which would strip double slashes
@@ -359,7 +357,7 @@ You can use follow config to prevent URL overwritting:
   }
 ```
 
-## License ##
+## License
 
 imageproxy is copyright Google, but is not an official Google product.  It is
 available under the [Apache 2.0 License](./LICENSE).

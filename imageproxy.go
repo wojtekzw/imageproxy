@@ -36,6 +36,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/wojtekzw/httpcache"
+	"github.com/wojtekzw/imageproxy/ip"
 	"github.com/wojtekzw/statsd"
 
 	"image"
@@ -86,6 +87,10 @@ type Proxy struct {
 	// proxied from.  An empty list means all hosts are allowed.
 	Whitelist []string
 
+	// WhitelistIP specifies a list o allowed ranges of remote IPs that images can
+	// be proxied from. An empty list means all hosts are allowed.
+	WhitelistIP []ip.Range
+
 	// Referrers, when given, requires that requests to the image
 	// proxy come from a referring host. An empty list means all
 	// hosts are allowed.
@@ -112,6 +117,8 @@ type Proxy struct {
 // used to fetch remote URLs.  If nil is provided, http.DefaultTransport will
 // be used.
 func NewProxy(transport http.RoundTripper, cache Cache, maxResponseSize uint64) *Proxy {
+	//  TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -279,12 +286,12 @@ func (p *Proxy) allowed(r *Request, cnFunc func(string) (string, error)) error {
 		return fmt.Errorf("request does not contain an allowed referrer: %v", r)
 	}
 
-	if len(p.Whitelist) == 0 && len(p.SignatureKey) == 0 {
-		return nil // no whitelist or signature key, all requests accepted
+	if len(p.Whitelist) == 0 && len(p.SignatureKey) == 0 && len(p.WhitelistIP) == 0 {
+		return nil // no whitelist hosts or no whitelist IPs or signature key, all requests accepted
 	}
 
-	if len(p.Whitelist) > 0 && validHostCached(p.Whitelist, r.URL, cnFunc) {
-		return nil
+	if (len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc)) || (len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, r.URL.Host)) {
+		return nil // valid host OR valid IP
 	}
 
 	if len(p.SignatureKey) > 0 && validSignature(p.SignatureKey, r) {
@@ -292,6 +299,82 @@ func (p *Proxy) allowed(r *Request, cnFunc func(string) (string, error)) error {
 	}
 
 	return fmt.Errorf("request does not contain an allowed host or valid signature: %v", r)
+}
+
+const (
+	sUknown = iota
+	sValid
+	sInvalid
+)
+
+// allowed determines whether the specified request contains an allowed
+// referrer, host, and signature.  It returns an error if the request is not
+// allowed.
+func (p *Proxy) allowedCached(r *Request, cnFunc func(string) (string, error)) error {
+	if len(p.Referrers) > 0 && !validReferrer(p.Referrers, r.Original) {
+		return fmt.Errorf("request does not contain an allowed referrer: %v", r)
+	}
+
+	if len(p.Whitelist) == 0 && len(p.SignatureKey) == 0 && len(p.WhitelistIP) == 0 {
+		return nil // no whitelist hosts or no whitelist IPs or signature key, all requests accepted
+	}
+
+	if _, err := allowedHosts.Get(r.URL.Host); err == nil {
+		return nil
+	}
+
+	// only if no signature we can check if dissallowed host - else signture can work
+	if len(p.SignatureKey) == 0 || len(r.Options.Signature) == 0 {
+		if _, err := notAllowedHosts.Get(r.URL.Host); err == nil {
+			log.Printf("host hit in disallowed hosts cache: %s", r.URL.Host)
+			return fmt.Errorf("request does not contain an allowed host: %s", r.URL.Host)
+		}
+
+	}
+
+	if (len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc)) || (len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, r.URL.Host)) {
+		allowedHosts.Set(r.URL.Host, struct{}{})
+		return nil // valid host OR valid IP
+	}
+
+	if len(p.Whitelist) > 0 || len(p.WhitelistIP) > 0 {
+		// invalid host becase was checked and we not returned from func
+		if _, err := notAllowedHosts.Get(r.URL.Host); err != nil {
+			notAllowedHosts.Set(r.URL.Host, struct{}{})
+		}
+
+	}
+
+	if len(p.SignatureKey) > 0 && validSignature(p.SignatureKey, r) {
+		return nil
+	}
+
+	return fmt.Errorf("request does not contain an allowed host or valid signature: %v", r)
+}
+
+func validIP(whitelistIPs []ip.Range, h string) (string, int) {
+
+	// fmt.Fprints(os.Stderr,"valid IP host: %s\n",h)
+
+	ips, err := net.LookupIP(h)
+	if err != nil {
+		log.Printf("error in lookup IP: %s, err: %v", h, err)
+		return h, sInvalid
+	}
+
+	for _, hip := range ips {
+		for _, wip := range whitelistIPs {
+			if ip.Between(wip.From, wip.To, hip) {
+				return h, sValid
+			}
+		}
+	}
+	return h, sInvalid
+}
+
+func validIPBool(whitelistIPs []ip.Range, h string) bool {
+	_, v := validIP(whitelistIPs, h)
+	return v == sValid
 }
 
 func cname(h string) (string, error) {
@@ -335,28 +418,20 @@ func validHostWithCNAME(hosts []string, u *url.URL, cnFunc func(string) (string,
 	return false
 }
 
-func validHostCached(hosts []string, u *url.URL, cnFunc func(string) (string, error)) bool {
-	if _, err := allowedHosts.Get(u.Host); err == nil {
-		return true
-	}
-	if _, err := notAllowedHosts.Get(u.Host); err == nil {
-		log.Printf("host hit in disallowed hosts cache: %s", u.Host)
-		return false
-	}
+func validHost(hosts []string, u *url.URL, cnFunc func(string) (string, error)) (string, int) {
 
 	if validHostWithCNAME(hosts, u, cnFunc) {
-		if _, err := allowedHosts.Get(u.Host); err != nil {
-			allowedHosts.Set(u.Host, struct{}{})
-		}
-		return true
+		return u.Host, sValid
 	}
 
-	if _, err := notAllowedHosts.Get(u.Host); err != nil {
-		notAllowedHosts.Set(u.Host, struct{}{})
-		log.Printf("host added to disallowed hosts cache: %s", u.Host)
-	}
+	return u.Host, sInvalid
+}
 
-	return false
+func validHostBool(hosts []string, u *url.URL, cnFunc func(string) (string, error)) bool {
+
+	_, v := validHost(hosts, u, cnFunc)
+
+	return v == sValid
 }
 
 // returns whether the referrer from the request is in the host list.

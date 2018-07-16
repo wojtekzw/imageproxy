@@ -41,6 +41,7 @@ import (
 	"github.com/peterbourgon/diskv"
 	"github.com/wojtekzw/imageproxy"
 	"github.com/wojtekzw/imageproxy/internal/s3cache"
+	"github.com/wojtekzw/imageproxy/ip"
 	"github.com/wojtekzw/statsd"
 )
 
@@ -58,6 +59,7 @@ var (
 
 var addr = flag.String("addr", "localhost:8080", "TCP address to listen on")
 var whitelist = flag.String("whitelist", "", "comma separated list of allowed remote hosts")
+var whitelistIP = flag.String("whitelistIP", "", "comma separated list of allowed remote hosts IP ranges. Ranges is defined as in 192.168.1.100-192.168.120 or 192.168.10.0/24 or 127.0.0.1 ")
 var referrers = flag.String("referrers", "", "comma separated list of allowed referring hosts")
 var baseURL = flag.String("baseURL", "", "default base URL for relative remote URLs")
 var cache = flag.String("cache", "", "location to cache images (see https://github.com/wojtekzw/imageproxy#cache)")
@@ -140,6 +142,14 @@ func main() {
 	if *whitelist != "" {
 		p.Whitelist = strings.Split(*whitelist, ",")
 	}
+
+	if *whitelistIP != "" {
+		p.WhitelistIP, err = parseWhitelistIP(*whitelistIP)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(1)
+		}
+	}
 	if *referrers != "" {
 		p.Referrers = strings.Split(*referrers, ",")
 	}
@@ -185,6 +195,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "max pixel size of image to be transformed (compiled in): %d\n", imageproxy.MaxPixels)
 		fmt.Fprintf(os.Stderr, "max transform concurrency (compiled in): %d\n", imageproxy.MaxConcurrency)
 		fmt.Fprintf(os.Stderr, "whitelist domains: %s\n", strings.Join(p.Whitelist, ", "))
+		fmt.Fprintf(os.Stderr, "whitelist IPs: %s\n", fmt.Sprintf("%v", p.WhitelistIP))
 		fmt.Fprintf(os.Stderr, "whitelist referrers: %s\n", strings.Join(p.Referrers, ", "))
 		fmt.Fprintf(os.Stderr, "signature key: %s\n", p.SignatureKey)
 		fmt.Fprintf(os.Stderr, "base url: %s\n", *baseURL)
@@ -309,4 +320,18 @@ func parseLog(pathName string) {
 		log.Fatal(err)
 	}
 	log.SetOutput(f)
+}
+
+func parseWhitelistIP(whitelistIP string) ([]ip.Range, error) {
+	ipRanges := []ip.Range{}
+	ipRangesStrings := strings.Split(whitelistIP, ",")
+	for _, v := range ipRangesStrings {
+		fromIP, toIP, err := ip.ParseIPRangeString(v)
+		if err != nil {
+			return nil, err
+		}
+		ipRanges = append(ipRanges, ip.Range{From: fromIP, To: toIP})
+	}
+
+	return ipRanges, nil
 }

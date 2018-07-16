@@ -23,12 +23,15 @@ import (
 	"image/png"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/wojtekzw/imageproxy/ip"
 )
 
 func TestCopyHeader(t *testing.T) {
@@ -165,6 +168,91 @@ func TestAllowed(t *testing.T) {
 			t.Errorf("allowed(%q) returned %v, want %v.\nTest struct: %#v", req, got, want, tt)
 		}
 	}
+}
+
+func testAllowedCached(id int, t *testing.T, wl []string, wlIP []ip.Range, sigKey []byte, url string, allowed bool) {
+
+	p := NewProxy(nil, nil, 0)
+	p.Whitelist = wl
+	p.WhitelistIP = wlIP
+	p.SignatureKey = sigKey
+
+	reqHTTP, err := http.NewRequest("GET", url, strings.NewReader("request body"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := NewRequest(reqHTTP, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	allowedHosts.Purge()
+	notAllowedHosts.Purge()
+
+	// first check to fill in cache
+	err = p.allowedCached(req, cname)
+	if allowed && err != nil || !allowed && err == nil {
+		t.Fatalf("id: %d, first check: expected allowed: %t, got allowed: %t (%v)", id, allowed, err == nil, err)
+	}
+
+	// second check from cache
+	err = p.allowedCached(req, cname)
+	if allowed && err != nil || !allowed && err == nil {
+		t.Fatalf("id: %d, second check: expected allowed: %t, got allowed: %t (%v)", id, allowed, err == nil, err)
+	}
+
+}
+
+func TestAllowedCached(t *testing.T) {
+	whitelistIPNegative := []ip.Range{
+		{
+			From: net.ParseIP("192.168.22.0"),
+			To:   net.ParseIP("192.168.22.255"),
+		},
+		{
+			From: net.ParseIP("192.217.0.0"),
+			To:   net.ParseIP("192.217.255.255"),
+		},
+	}
+	whitelistIPPositive := []ip.Range{
+		{
+			From: net.ParseIP("216.58.0.0"),
+			To:   net.ParseIP("216.58.255.255"),
+		},
+		{
+			From: net.ParseIP("172.217.0.0"),
+			To:   net.ParseIP("172.217.255.255"),
+		},
+	}
+	whitelistPositive := []string{"example.com", "www.google.com", "*.google.com", "google.com"}
+	whitelistNegative := []string{"example.com"}
+
+	nonEmptySigKey := []byte("12344556")
+
+	testAllowedCached(1, t, nil, nil, nil, "http://localhost/x114/http://google.com/a.jpg", true)
+	testAllowedCached(2, t, whitelistPositive, nil, nil, "http://localhost/x114/http://google.com/a.jpg", true)
+	testAllowedCached(3, t, whitelistNegative, nil, nil, "http://localhost/x114/http://google.com/a.jpg", false)
+	testAllowedCached(4, t, nil, whitelistIPPositive, nil, "http://localhost/x114/http://google.com/a.jpg", true)
+	testAllowedCached(5, t, nil, whitelistIPNegative, nil, "http://localhost/x114/http://google.com/a.jpg", false)
+
+	testAllowedCached(21, t, nil, nil, nonEmptySigKey, "http://localhost/x114/http://google.com/a.jpg", false)
+	testAllowedCached(22, t, whitelistPositive, nil, nonEmptySigKey, "http://localhost/x114/http://google.com/a.jpg", true)
+	testAllowedCached(23, t, whitelistNegative, nil, nonEmptySigKey, "http://localhost/x114/http://google.com/a.jpg", false)
+	testAllowedCached(24, t, nil, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114/http://google.com/a.jpg", true)
+	testAllowedCached(25, t, nil, whitelistIPNegative, nonEmptySigKey, "http://localhost/x114/http://google.com/a.jpg", false)
+
+	testAllowedCached(31, t, nil, nil, nil, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
+	testAllowedCached(32, t, whitelistPositive, nil, nil, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
+	testAllowedCached(33, t, whitelistNegative, nil, nil, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
+	testAllowedCached(34, t, nil, whitelistIPPositive, nil, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
+	testAllowedCached(35, t, nil, whitelistIPNegative, nil, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
+
+	testAllowedCached(41, t, nil, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
+	testAllowedCached(42, t, whitelistPositive, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
+	testAllowedCached(43, t, whitelistNegative, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
+	testAllowedCached(44, t, nil, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
+	testAllowedCached(45, t, nil, whitelistIPNegative, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
+
 }
 
 func TestValidHost(t *testing.T) {
@@ -435,6 +523,179 @@ func TestTransformingTransport(t *testing.T) {
 		}
 		if got, want := resp.StatusCode, tt.code; got != want {
 			t.Errorf("RoundTrip(%v) returned status code %d, want %d", tt.url, got, want)
+		}
+	}
+}
+
+func TestValidIP(t *testing.T) {
+	whitelist := []ip.Range{
+		{
+			From: net.ParseIP("192.168.22.0"),
+			To:   net.ParseIP("192.168.22.255"),
+		},
+		{
+			From: net.ParseIP("192.0.79.32"),
+			To:   net.ParseIP("192.0.79.35"),
+		},
+		{
+			From: net.ParseIP("173.194.220.100"),
+			To:   net.ParseIP("173.194.220.255"),
+		},
+	}
+	if !validIPBool(whitelist, "nypost.com") {
+		t.Error("validIP (NYPost) - expected: 'true', got: 'false'")
+	}
+	if validIPBool(whitelist, "yahoo.com") {
+		t.Error("validIP (Yahoo) - expected: 'false, got: 'true'")
+	}
+}
+
+func BenchmarkAllowedIP(b *testing.B) {
+	whitelistIP := []ip.Range{
+		{
+			From: net.ParseIP("216.58.0.0"),
+			To:   net.ParseIP("216.58.255.255"),
+		},
+		{
+			From: net.ParseIP("172.217.0.0"),
+			To:   net.ParseIP("172.217.255.255"),
+		},
+		{
+			From: net.ParseIP("173.194.220.100"),
+			To:   net.ParseIP("173.194.220.255"),
+		},
+	}
+
+	p := NewProxy(nil, nil, 0)
+	p.WhitelistIP = whitelistIP
+
+	reqHTTP, err := http.NewRequest("GET", "http://localhost/x114/http://google.com/a.jpg", strings.NewReader("request body"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	req, err := NewRequest(reqHTTP, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		err := p.allowed(req, cname)
+		if err != nil {
+			b.Fatal("expected allowed result")
+		}
+
+	}
+}
+
+func BenchmarkAllowedIPCachedPositive(b *testing.B) {
+	whitelistIP := []ip.Range{
+		{
+			From: net.ParseIP("216.58.0.0"),
+			To:   net.ParseIP("216.58.255.255"),
+		},
+		{
+			From: net.ParseIP("172.217.0.0"),
+			To:   net.ParseIP("172.217.255.255"),
+		},
+		{
+			From: net.ParseIP("173.194.220.100"),
+			To:   net.ParseIP("173.194.220.255"),
+		},
+	}
+
+	p := NewProxy(nil, nil, 0)
+	p.WhitelistIP = whitelistIP
+
+	reqHTTP, err := http.NewRequest("GET", "http://localhost/x114/http://google.com/a.jpg", strings.NewReader("request body"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	req, err := NewRequest(reqHTTP, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	allowedHosts.Purge()
+	notAllowedHosts.Purge()
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		err := p.allowedCached(req, cname)
+		if err != nil {
+			b.Fatal("expected allowed result")
+		}
+
+	}
+}
+
+func BenchmarkAllowedIPCachedNegativeWithSignature(b *testing.B) {
+	whitelistIP := []ip.Range{
+		{
+			From: net.ParseIP("192.168.22.0"),
+			To:   net.ParseIP("192.168.22.255"),
+		},
+	}
+
+	p := NewProxy(nil, nil, 0)
+	p.WhitelistIP = whitelistIP
+	p.SignatureKey = []byte("12334445556")
+
+	reqHTTP, err := http.NewRequest("GET", "http://localhost/x114/http://google.com/a.jpg", strings.NewReader("request body"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	req, err := NewRequest(reqHTTP, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	allowedHosts.Purge()
+	notAllowedHosts.Purge()
+
+	// fill-in cache
+	p.allowedCached(req, cname)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		err := p.allowedCached(req, cname)
+		if err == nil {
+			b.Fatal("expected not allowed result")
+		}
+	}
+}
+
+func BenchmarkAllowedIPCachedNegativeNoSignature(b *testing.B) {
+	whitelistIP := []ip.Range{
+		{
+			From: net.ParseIP("192.168.22.0"),
+			To:   net.ParseIP("192.168.22.255"),
+		},
+	}
+
+	p := NewProxy(nil, nil, 0)
+	p.WhitelistIP = whitelistIP
+	p.SignatureKey = nil
+
+	reqHTTP, err := http.NewRequest("GET", "http://localhost/x114/http://google.com/a.jpg", strings.NewReader("request body"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	req, err := NewRequest(reqHTTP, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	allowedHosts.Purge()
+	notAllowedHosts.Purge()
+
+	// fill-in cache
+	p.allowedCached(req, cname)
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		err := p.allowedCached(req, cname)
+		if err == nil {
+			b.Fatal("expected not allowed result")
 		}
 	}
 }

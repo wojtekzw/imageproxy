@@ -8,7 +8,7 @@ imageproxy is a caching image proxy server written in Go.  It is the fork of
 for feature changes in this fork. It features:
 
 - basic image adjustments like resizing, cropping, and rotation
-- access control using host whitelists or request signing (HMAC-SHA256)
+- access control using host or IP whitelists or request signing (HMAC-SHA256)
 - support for jpeg, png, webp (decode only), tiff, and gif image formats (including animated gifs)
 - on-disk caching, respecting the cache headers of the original images
 - easy deployment, since it's pure go
@@ -210,14 +210,33 @@ specify multiple hosts as a comma separated list, or prefix a host value with
 You can limit the remote hosts that the proxy will fetch images from using the
 `whitelist` flag.  This is useful, for example, for locking the proxy down to
 your own hosts to prevent others from abusing it.  Of course if you want to
-support fetching from any host, leave off the whitelist flag.  Try it out by
-running:
+support fetching from any host, leave off the whitelist flag.  If origin hostname
+if a CNAME to a canonical hostname, the canonical name can be used as a parameter
+to `whitelist`.
+
+Try `whitelist` out by running:
 
     imageproxy -whitelist example.com
 
 Reload the [codercat URL][], and you should now get an error message.  You can
 specify multiple hosts as a comma separated list, or prefix a host value with
 `*.` to allow all sub-domains as well.
+
+If you have `whilelist` and `whitelistIP` flag, host wil be allowed if it is on
+any of these two lists.
+
+### Host whitelistIP
+
+You can limit the remote hosts that the proxy will fetch images from using the
+`whitelistIP` flag.  This is useful, for example, for locking the proxy down to
+your own hosts to prevent others from abusing it.  Of course if you want to
+support fetching from any host, leave off the whitelistIP flag.  Try it out by
+running:
+
+    imageproxy -whitelistIP 192.168.1.100-192.168.120,192.168.10.0/24,127.0.0.1
+
+If you have `whilelist` and `whitelistIP` flag, host wil be allowed if it is on
+any of these two lists.
 
 ### Signed Requests
 
@@ -295,9 +314,9 @@ needs... it's a very simple command.
 
 All of these changes are to help stability of imageproxy:
 
-- maxScaleUp - limit scalling up to defined number of times - default 2. Works when scaling up is enabled.
+- `maxScaleUp` - limit scalling up to defined number of times - default 2. Works when scaling up is enabled.
    Helps to protect server memory from being exhausted
-- responseSize - limit maximum size in bytes of image to be fetched and scaled.
+- `responseSize` - limit maximum size in bytes of image to be fetched and scaled.
   Do not try to scale too big images. Default is 20MB
 - maxPixels - limit maximum size in pixels for images to be transformed. If images if larger do not try to scale it.
   Images must be 'unpacked' to memory so it helps to protect stability. (It is no ideal - smaller images can still 'unpack' to very large).
@@ -305,11 +324,12 @@ All of these changes are to help stability of imageproxy:
 - statsD - send internal server data to statsD daemon
 - diskcache - limit number of created files on disk (default 20000) and reload cache after restart (hardcoded in diskcache component)
 - concurrency - limit concurrency of images transformation (default 15 concurrent transformations) - to preserve CPU
+- `printConfig` - command line parameter to show internal config of imageproxy
 
 ### Security
 
 - imageproxy can use HTTP_PROXY to get external images. Proxy can be set either by setting HTTP_PROXY environment variable or
-    by setting command line option `-httpProxy`. Command line takes precedence over environment variable.
+    by setting command line option `httpProxy`. Command line takes precedence over environment variable.
     Example:
 
 ```shell
@@ -317,10 +337,13 @@ imageproxy -httpProxy "http://127.0.0.1:8888"
 ```
 
 - imageproxy is limited to proxing only the following content-types: image/jpg, image/jpeg, image/gif, image/png. All other types generate error.
+- `whilelist` - checks if orign hostaname is a CNAME to canonical name. In this case canonical name can be used in `whitelist` flag and CNAME can be used in
+  hostaname in URL to be proxied. This feature is for services that have many different (maybe dynamicaly) CNAMEs to one canonical name that can be proxied.
+- `whitelistIP` - limit origin to comma separated list of allowed remote hosts IP ranges. Ranges is defined as in 192.168.1.100-192.168.120 or 192.168.10.0/24 or 127.0.0.1
 
 ### Development
 
-- sslSkipVerify - command line parameter to allow self-signed or expired SSL certificates on origin servers. SHOULD NOT be used in production.
+- `sslSkipVerify` - command line parameter to allow self-signed or expired SSL certificates on origin servers. SHOULD NOT be used in production.
 
 ## Deploying
 

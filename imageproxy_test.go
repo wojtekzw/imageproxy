@@ -204,6 +204,25 @@ func testAllowedCached(id int, t *testing.T, wl []string, wlIP []ip.Range, sigKe
 }
 
 func TestAllowedCached(t *testing.T) {
+	whitelistIPPositive := []ip.Range{
+		{
+			From: net.ParseIP("216.58.0.0"),
+			To:   net.ParseIP("216.58.255.255"),
+		},
+		{
+			From: net.ParseIP("172.217.0.0"),
+			To:   net.ParseIP("172.217.255.255"),
+		},
+		{
+			From: net.ParseIP("127.0.0.1"),
+			To:   net.ParseIP("127.0.0.1"),
+		},
+		{
+			From: net.ParseIP("::1"),
+			To:   net.ParseIP("::1"),
+		},
+	}
+
 	whitelistIPNegative := []ip.Range{
 		{
 			From: net.ParseIP("192.168.22.0"),
@@ -214,18 +233,9 @@ func TestAllowedCached(t *testing.T) {
 			To:   net.ParseIP("192.217.255.255"),
 		},
 	}
-	whitelistIPPositive := []ip.Range{
-		{
-			From: net.ParseIP("216.58.0.0"),
-			To:   net.ParseIP("216.58.255.255"),
-		},
-		{
-			From: net.ParseIP("172.217.0.0"),
-			To:   net.ParseIP("172.217.255.255"),
-		},
-	}
-	whitelistPositive := []string{"example.com", "www.google.com", "*.google.com", "google.com"}
-	whitelistNegative := []string{"example.com"}
+
+	whitelistPositive := []string{"example.com", "www.google.com", "*.google.com", "google.com", "localhost:81", "127.0.0.1:81"}
+	whitelistNegative := []string{"example.com", "localhost:90", "localhost", "127.0.0.1"}
 
 	nonEmptySigKey := []byte("12344556")
 
@@ -253,10 +263,21 @@ func TestAllowedCached(t *testing.T) {
 	testAllowedCached(44, t, nil, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", true)
 	testAllowedCached(45, t, nil, whitelistIPNegative, nonEmptySigKey, "http://localhost/x114,s09876554/http://google.com/a.jpg", false)
 
+	testAllowedCached(51, t, nil, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost:81/a.jpg", false)
+	testAllowedCached(52, t, whitelistPositive, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost:81/a.jpg", true)
+	testAllowedCached(53, t, whitelistPositive, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://127.0.0.1:81/a.jpg", true)
+	testAllowedCached(54, t, whitelistNegative, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost:81/a.jpg", false)
+	testAllowedCached(55, t, whitelistNegative, nil, nonEmptySigKey, "http://localhost/x114,s09876554/http://127.0.0.1:81/a.jpg", false)
+	testAllowedCached(56, t, nil, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://127.0.0.1:81/a.jpg", true)
+	testAllowedCached(57, t, whitelistNegative, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://127.0.0.1:81/a.jpg", true)
+	testAllowedCached(58, t, whitelistNegative, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost:81/a.jpg", true)
+	testAllowedCached(59, t, whitelistNegative, whitelistIPPositive, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost/a.jpg", true)
+	testAllowedCached(60, t, nil, whitelistIPNegative, nonEmptySigKey, "http://localhost/x114,s09876554/http://localhost:81/a.jpg", false)
+
 }
 
 func TestValidHost(t *testing.T) {
-	whitelist := []string{"a.test", "*.b.test", "*c.test"}
+	whitelist := []string{"a.test", "a.test:81", "*.b.test", "*c.test"}
 
 	tests := []struct {
 		url   string
@@ -274,6 +295,8 @@ func TestValidHost(t *testing.T) {
 		{"/image", false},
 
 		{"http://d.test/image", true},
+		{"http://d.test:81/image", true},
+		{"http://d.test:90/image", false},
 		{"http://e.test/image", true},
 		{"http://a.f.test/image", false},
 		{"http://b.f.test/image", false},
@@ -300,7 +323,7 @@ func TestValidHost(t *testing.T) {
 			t.Errorf("error parsing url %q: %v", tt.url, err)
 		}
 		if got, want := validHostWithCNAME(whitelist, u, cnameTest), tt.valid; got != want {
-			t.Errorf("validHostExtended(%v, %q) returned %v, want %v", whitelist, u, got, want)
+			t.Errorf("validHostWithCNAME(%v, %q) returned %v, want %v", whitelist, u, got, want)
 		}
 	}
 }

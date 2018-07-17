@@ -205,7 +205,7 @@ func (p *Proxy) serveImage(w http.ResponseWriter, r *http.Request) {
 	// assign static settings from proxy to req.Options
 	req.Options.ScaleUp = p.ScaleUp
 
-	if err = p.allowed(req, cname); err != nil {
+	if err = p.allowedCached(req, cname); err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		Statsd.Increment("request.error.not_allowed")
@@ -290,7 +290,8 @@ func (p *Proxy) allowed(r *Request, cnFunc func(string) (string, error)) error {
 		return nil // no whitelist hosts or no whitelist IPs or signature key, all requests accepted
 	}
 
-	if (len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc)) || (len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, r.URL.Host)) {
+	rHost := r.URL.Hostname()
+	if (len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc)) || (len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, rHost)) {
 		return nil // valid host OR valid IP
 	}
 
@@ -319,28 +320,59 @@ func (p *Proxy) allowedCached(r *Request, cnFunc func(string) (string, error)) e
 		return nil // no whitelist hosts or no whitelist IPs or signature key, all requests accepted
 	}
 
-	if _, err := allowedHosts.Get(r.URL.Host); err == nil {
-		return nil
+	// hostname with port = allowed by whitelist names
+	if len(p.Whitelist) > 0 {
+		if _, err := allowedHosts.Get(r.URL.Host); err == nil {
+			// fmt.Printf("allowed used: %s\n", rHost)
+			return nil
+		}
 	}
 
-	// only if no signature we can check if dissallowed host - else signture can work
+	// hostname without port - allowed by whitelistIP
+	rHost := r.URL.Hostname()
+	if len(p.WhitelistIP) > 0 {
+		if _, err := allowedHosts.Get(rHost); err == nil {
+			// fmt.Printf("allowed used: %s\n", rHost)
+			return nil
+		}
+	}
+	// only if no signature we can check if dissallowed host - else signture may work
 	if len(p.SignatureKey) == 0 || len(r.Options.Signature) == 0 {
-		if _, err := notAllowedHosts.Get(r.URL.Host); err == nil {
-			log.Printf("host hit in disallowed hosts cache: %s", r.URL.Host)
-			return fmt.Errorf("request does not contain an allowed host: %s", r.URL.Host)
+		if _, err := notAllowedHosts.Get(rHost); err == nil {
+			// fmt.Printf("not allowed used: %s\n", rHost)
+			log.Printf("host hit in disallowed hosts cache: %s", rHost)
+			return fmt.Errorf("request does not contain an allowed host: %s", rHost)
 		}
 
 	}
 
-	if (len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc)) || (len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, r.URL.Host)) {
+	if len(p.Whitelist) > 0 && validHostBool(p.Whitelist, r.URL, cnFunc) {
+		// fmt.Printf("allowed added: %s\n", r.URL.Host)
 		allowedHosts.Set(r.URL.Host, struct{}{})
-		return nil // valid host OR valid IP
+		return nil // valid host with port
 	}
 
-	if len(p.Whitelist) > 0 || len(p.WhitelistIP) > 0 {
-		// invalid host becase was checked and we not returned from func
+	if len(p.WhitelistIP) > 0 && validIPBool(p.WhitelistIP, rHost) {
+		// fmt.Printf("allowed added: %s\n", rHost)
+		allowedHosts.Set(rHost, struct{}{})
+		return nil // valid IP without port
+	}
+
+	// invalid host becase was checked and we not returned from func
+
+	// if whitelist - set with port
+	if len(p.Whitelist) > 0 {
 		if _, err := notAllowedHosts.Get(r.URL.Host); err != nil {
+			// fmt.Printf("not allowed added: %s\n", rHost)
 			notAllowedHosts.Set(r.URL.Host, struct{}{})
+		}
+	}
+
+	// if whitelistIP - set without port
+	if len(p.WhitelistIP) > 0 {
+		if _, err := notAllowedHosts.Get(rHost); err != nil {
+			// fmt.Printf("not allowed added: %s\n", rHost)
+			notAllowedHosts.Set(rHost, struct{}{})
 		}
 
 	}
@@ -353,8 +385,6 @@ func (p *Proxy) allowedCached(r *Request, cnFunc func(string) (string, error)) e
 }
 
 func validIP(whitelistIPs []ip.Range, h string) (string, int) {
-
-	// fmt.Fprints(os.Stderr,"valid IP host: %s\n",h)
 
 	ips, err := net.LookupIP(h)
 	if err != nil {
@@ -409,7 +439,16 @@ func validHostWithCNAME(hosts []string, u *url.URL, cnFunc func(string) (string,
 		return true
 	}
 
-	name, err := cnFunc(u.Host)
+	rHost := u.Hostname()
+	rPort := u.Port()
+
+	name, err := cnFunc(rHost)
+
+	// allow canonical name on the same port sa CNAME
+	// eg. `cname:88`` is allowed by `canonical:88`` - NOT by `canonical`
+	if len(rPort) > 0 {
+		name = name + ":" + rPort
+	}
 
 	if err == nil && validHostSimple(hosts, name) {
 		return true

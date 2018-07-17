@@ -213,6 +213,11 @@ your own hosts to prevent others from abusing it.  Of course if you want to
 support fetching from any host, leave off the whitelist flag.  If origin hostname
 if a CNAME to a canonical hostname, the canonical name can be used as a parameter
 to `whitelist`.
+This parameter allows to control access including port number eg.
+`-whitelist localhost:2015` will allow access to http://localhost:2015/i.jpg
+but will not allow access to http://localhost/i.jpg. And the opposite
+`-whitelist localhost` will allow access to http://localhost/i.jpg and not to
+http://localhost:2015/i.jpg.
 
 Try `whitelist` out by running:
 
@@ -223,7 +228,8 @@ specify multiple hosts as a comma separated list, or prefix a host value with
 `*.` to allow all sub-domains as well.
 
 If you have `whilelist` and `whitelistIP` flag, host wil be allowed if it is on
-any of these two lists.
+any of these two lists. 
+
 
 ### Host whitelistIP
 
@@ -237,6 +243,8 @@ running:
 
 If you have `whilelist` and `whitelistIP` flag, host wil be allowed if it is on
 any of these two lists.
+
+`whitelistIP` will not allow you to specify port number.
 
 ### Signed Requests
 
